@@ -17,6 +17,7 @@ export interface Prompt {
   author: Author
   created_at: string
   updated_at: string
+  is_saved?: boolean
 }
 
 export interface PromptContextType {
