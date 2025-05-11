@@ -1,4 +1,77 @@
-This is a [Plasmo extension](https://docs.plasmo.com/) project bootstrapped with [`plasmo init`](https://www.npmjs.com/package/plasmo).
+# PromptMD Chrome Extension
+
+A Chrome Extension companion for PromptMD, a collaborative library of AI tools for healthcare professionals.
+
+## Setup
+
+1. Install dependencies:
+```bash
+pnpm install
+```
+
+2. Create a `.env` file in the root directory with the following variables:
+```env
+PLASMO_PUBLIC_SUPABASE_URL=your_supabase_url_here
+PLASMO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+PLASMO_PUBLIC_ENVIRONMENT=development
+```
+
+3. Development:
+```bash
+pnpm dev
+```
+
+4. Build:
+```bash
+pnpm build
+```
+
+5. Package for distribution:
+```bash
+pnpm package
+```
+
+## Environment Variables
+
+- `PLASMO_PUBLIC_SUPABASE_URL`: Your Supabase project URL
+- `PLASMO_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anonymous key
+- `PLASMO_PUBLIC_ENVIRONMENT`: Set to 'development' or 'production'
+
+## Development
+
+The extension is built using:
+- Plasmo Framework
+- React
+- TypeScript
+- Supabase for backend services
+
+## Security
+
+The extension uses restricted host permissions to only access the PromptMD domain. This ensures the extension only operates on trusted domains.
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## About
+
+This is the Chrome Extension companion for [PromptMD](https://github.com/ben-minari/promptmd.git), a collaborative library of AI tools for healthcare professionals. The extension provides quick access to prompts and maintains design consistency with the web application.
+
+## Design Consistency
+
+This extension maintains design consistency with the main PromptMD web application. Key design elements are shared between both projects:
+- Color scheme and typography
+- Component design patterns
+- User interaction patterns
+- State management approaches
 
 ## Getting Started
 
