@@ -10,13 +10,12 @@ const USER_ACCOUNTS_KEY = "user_accounts"
 
 // Store auth token safely
 export const storeAuthToken = async (userId: string, token: string) => {
-  await storage.set(AUTH_TOKEN_KEY, token)
-  await storage.set(CURRENT_USER_KEY, userId)
+  await storage.set(`auth_token_${userId}`, token)
 }
 
 // Get stored auth token
-export const getStoredAuthToken = async (): Promise<string | null> => {
-  return await storage.get(AUTH_TOKEN_KEY)
+export const getStoredAuthToken = async (userId: string) => {
+  return await storage.get(`auth_token_${userId}`)
 }
 
 // Get current user ID
@@ -25,9 +24,8 @@ export const getCurrentUserId = async (): Promise<string | null> => {
 }
 
 // Remove auth token on logout
-export const removeAuthToken = async () => {
-  await storage.remove(AUTH_TOKEN_KEY)
-  await storage.remove(CURRENT_USER_KEY)
+export const removeAuthToken = async (userId: string) => {
+  await storage.remove(`auth_token_${userId}`)
 }
 
 // Store multiple account information

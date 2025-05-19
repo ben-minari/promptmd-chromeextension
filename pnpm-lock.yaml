@@ -23,9 +23,12 @@ importers:
       react-dom:
         specifier: 18.2.0
         version: 18.2.0(react@18.2.0)
+<<<<<<< HEAD
       tailwind-merge:
         specifier: ^3.3.0
         version: 3.3.0
+=======
+>>>>>>> c9885d634bba93b9fd048655c9b172206cc95e03
     devDependencies:
       '@ianvs/prettier-plugin-sort-imports':
         specifier: 4.1.1
@@ -3167,9 +3170,12 @@ packages:
     engines: {node: '>=10.13.0'}
     hasBin: true
 
+<<<<<<< HEAD
   tailwind-merge@3.3.0:
     resolution: {integrity: sha512-fyW/pEfcQSiigd5SNn0nApUOxx0zB/dm6UDU/rEwc2c3sX2smWUNbapHv+QRqLGVp9GWX3THIa7MUGPo+YkDzQ==}
 
+=======
+>>>>>>> c9885d634bba93b9fd048655c9b172206cc95e03
   temp-dir@3.0.0:
     resolution: {integrity: sha512-nHc6S/bwIilKHNRgK/3jlhDoIHcp45YgyiwcAk46Tr0LfEqGBVpmiAyuiuxeVE44m3mXnEeVhaipLOEWmH+Njw==}
     engines: {node: '>=14.16'}
@@ -6926,8 +6932,11 @@ snapshots:
       picocolors: 1.1.1
       stable: 0.1.8
 
+<<<<<<< HEAD
   tailwind-merge@3.3.0: {}
 
+=======
+>>>>>>> c9885d634bba93b9fd048655c9b172206cc95e03
   temp-dir@3.0.0: {}
 
   tempy@3.1.0:
