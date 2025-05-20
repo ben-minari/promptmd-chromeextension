@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Tools collection
+    match /tools/{toolId} {
+      // Anyone can read published tools
+      allow read: if resource.data.status == "published";
+      
+      // Only the owner can read/write their drafts
+      allow read, write: if isOwner(resource.data.authorId) 
+        && resource.data.status == "draft";
+      
+      // Only the owner can update their published tools
+      allow update: if isOwner(resource.data.authorId) 
+        && resource.data.status == "published";
+    }
+
+    // User's saved tools subcollection
+    match /users/{userId}/savedTools/{toolId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Ratings collection
+    match /ratings/{ratingId} {
+      // Anyone can read ratings
+      allow read: if true;
+      
+      // Only authenticated users can create ratings
+      allow create: if isAuthenticated() 
+        && request.resource.data.userId == request.auth.uid;
+      
+      // Only the rating owner can update/delete their rating
+      allow update, delete: if isOwner(resource.data.userId);
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+    }
+  }
+} 
