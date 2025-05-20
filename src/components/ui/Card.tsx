@@ -1,28 +1,21 @@
 import React from 'react';
-import { twMerge } from 'tailwind-merge';
+import { cn } from '../../utils/cn';
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: 'default' | 'bordered';
+  variant?: 'default' | 'hover';
 }
 
-export const Card: React.FC<CardProps> = ({
-  children,
+export function Card({ 
+  className, 
   variant = 'default',
-  className,
-  ...props
-}) => {
-  const baseStyles = 'rounded-lg bg-white p-4 shadow-sm';
-  
-  const variants = {
-    default: '',
-    bordered: 'border border-slate-200'
-  };
-
+  children,
+  ...props 
+}: CardProps) {
   return (
     <div
-      className={twMerge(
-        baseStyles,
-        variants[variant],
+      className={cn(
+        'bg-slate-50 rounded-lg border border-slate-200 p-4',
+        variant === 'hover' && 'transition-shadow duration-200 hover:shadow-md',
         className
       )}
       {...props}
@@ -30,49 +23,64 @@ export const Card: React.FC<CardProps> = ({
       {children}
     </div>
   );
-};
+}
 
-export const CardHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
-  children,
-  className,
-  ...props
-}) => {
+export function CardHeader({ 
+  className, 
+  ...props 
+}: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={twMerge('mb-4', className)}
+      className={cn('flex flex-col space-y-1.5 p-4', className)}
       {...props}
-    >
-      {children}
-    </div>
+    />
   );
-};
+}
 
-export const CardTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({
-  children,
-  className,
-  ...props
-}) => {
+export function CardTitle({ 
+  className, 
+  ...props 
+}: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h3
-      className={twMerge('text-lg font-semibold text-slate-800', className)}
+      className={cn('text-lg font-semibold text-slate-800', className)}
       {...props}
-    >
-      {children}
-    </h3>
+    />
   );
-};
+}
 
-export const CardContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
-  children,
-  className,
-  ...props
-}) => {
+export function CardDescription({ 
+  className, 
+  ...props 
+}: React.HTMLAttributes<HTMLParagraphElement>) {
+  return (
+    <p
+      className={cn('text-sm text-slate-600', className)}
+      {...props}
+    />
+  );
+}
+
+export function CardContent({ 
+  className, 
+  ...props 
+}: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={twMerge('text-sm text-slate-600', className)}
+      className={cn('p-4 pt-0', className)}
       {...props}
-    >
-      {children}
-    </div>
+    />
   );
-}; 
+}
+
+export function CardFooter({ 
+  className, 
+  ...props 
+}: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn('flex items-center p-4 pt-0', className)}
+      {...props}
+    />
+  );
+} 
