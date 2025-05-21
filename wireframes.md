@@ -215,3 +215,25 @@
 - Collaboration features
 - Usage analytics
 - Personal collections
+
+## New Layout
+
+### Top Bar Search + Tools Dropdown
+```
++-------------------------------------------------------------+
+| [Logo] PromptMD      [Search prompts...__________]   [Sign In/Profile] |
++-------------------------------------------------------------+
+| [All] [Specialties] [Use Cases] [User Types] [AI Models] [Filters ▼]    |
++-------------------------------------------------------------+
+| [Selected Filters: chips here, if any]                      |
++-------------------------------------------------------------+
+| [Prompt Card 1]                                             |
+| [Prompt Card 2]                                             |
+| ...                                                         |
++-------------------------------------------------------------+
+```
+
+- **[Tools ▼]** opens a dropdown or popover with all filter options (searchable dropdowns, checkboxes, etc.).
+- **Selected filters** are shown as chips below the bar for quick removal.
+- **Search bar** is always visible, in line with the logo.
+- **Minimalist logo** (your SVG) is leftmost, with PromptMD text or just the icon for ultra-minimalism.
