@@ -13,12 +13,11 @@ export function SearchBar({
   ...props
 }: SearchBarProps) {
   return (
-    <div className={cn("relative", className)}>
-      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+    <div className={cn(className)}>
       <Input
         type="search"
         placeholder="Search prompts..."
-        className="pl-9"
+        className="pl-4"
         onChange={(e) => onSearch?.(e.target.value)}
         {...props}
       />

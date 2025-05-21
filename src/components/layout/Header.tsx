@@ -27,9 +27,9 @@ export function Header({ onCreatePrompt, onSearch, onOpenFilters }: HeaderProps)
   }, [isProfileMenuOpen]);
 
   return (
-    <div className="sticky top-0 z-50 flex items-center justify-between gap-2 p-1 border-b border-slate-200 bg-white">
+    <div className="sticky top-0 z-50 flex items-center justify-between gap-1 p-1 border-b border-slate-200 bg-white">
       {/* Left: Logo (placeholder for SVG) */}
-      <div className="flex items-center gap-2 min-w-[40px]">
+      <div className="flex items-center w-7 ml-2">
         <span className="h-7 w-7 flex items-center justify-center">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -55,7 +55,7 @@ export function Header({ onCreatePrompt, onSearch, onOpenFilters }: HeaderProps)
         <SearchBar
           onSearch={onSearch}
           placeholder="Search prompts..."
-          className="w-full max-w-none px-0 pl-8"
+          className="w-full max-w-none px-0 pl-4"
           style={{ minWidth: 0, width: '100%' }}
         />
       </div>

@@ -147,7 +147,7 @@ export default function AuthenticatedApp() {
           {/* Overlay */}
           <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => setIsFiltersOpen(false)} />
           {/* Sidebar */}
-          <div className="relative ml-auto w-80 max-w-full h-full bg-white shadow-xl p-6 border-l border-slate-200">
+          <div className="relative ml-auto w-50 max-w-full h-full bg-white shadow-xl p-6 border-l border-slate-200">
             <button
               className="absolute top-4 right-4 text-slate-500 hover:text-slate-700"
               onClick={() => setIsFiltersOpen(false)}
