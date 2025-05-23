@@ -8,7 +8,8 @@ export const AccountSwitcher: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSignIn = async () => {
+  const handleSignIn = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     try {
       setIsLoading(true);
       setError(null);

@@ -225,7 +225,7 @@ export function CreatePromptModal({
                       type="submit"
                       variant="primary"
                     >
-                      Create Prompt
+                      Publish Prompt
                     </Button>
                   </>
                 ) : (

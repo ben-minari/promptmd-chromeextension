@@ -193,5 +193,26 @@ export const toolsService = {
       errorCount,
       totalDocuments: snapshot.size
     }
+  },
+
+  async getToolsByAuthor(userId: string) {
+    const q = query(
+      collection(db, "tools"),
+      where("authorId", "==", userId),
+      orderBy("updatedAt", "desc")
+    )
+    const snapshot = await getDocs(q)
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tool))
+  },
+
+  async getDraftTools(userId: string) {
+    const q = query(
+      collection(db, "tools"),
+      where("authorId", "==", userId),
+      where("status", "==", "draft"),
+      orderBy("updatedAt", "desc")
+    )
+    const snapshot = await getDocs(q)
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tool))
   }
 } 

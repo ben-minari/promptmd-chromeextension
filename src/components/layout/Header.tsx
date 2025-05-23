@@ -109,7 +109,10 @@ export function Header({ onCreatePrompt, onSearch, onOpenFilters }: HeaderProps)
         ) : (
           <Button
             variant="primary"
-            onClick={signInWithGoogle}
+            onClick={(e) => {
+              e.stopPropagation();
+              signInWithGoogle();
+            }}
           >
             Sign in
           </Button>

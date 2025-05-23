@@ -125,4 +125,37 @@ When contributing to the codebase:
 1. Follow the established patterns
 2. Document any architectural decisions
 3. Update this document if making significant changes
-4. Ensure all changes are properly typed and tested 
+4. Ensure all changes are properly typed and tested
+
+## Current UX State (as of June 2024)
+
+### Prompt Creation Flow
+- **Create Prompt** button is always visible (header, floating action button, and under welcome message).
+- Clicking "Create Prompt" opens the Create Prompt modal for all users (authenticated or not).
+- Unauthenticated users can fill out the prompt form, but see a single "Sign In to Save" button instead of save/publish options.
+- On clicking "Sign In to Save":
+  - The draft is saved in memory.
+  - The Google sign-in flow is triggered.
+  - After successful authentication, the modal reopens with the draft pre-filled for review and publishing.
+- Authenticated users can save as draft or publish directly from the modal.
+
+### Search & Filtering
+- The top header search bar uses fuzzy search (Fuse.js) across prompt title, description, and tags.
+- Search results are highlighted minimally (single contiguous match per field/tag).
+- Tag filters can be combined with search for powerful filtering.
+- Both authenticated and unauthenticated experiences have the same search/filter UX.
+
+### Modal & Tag UX
+- Tag selection uses a multi-select dropdown with category-based color chips.
+- Dropdowns have explicit close buttons and clear focus rings for accessibility.
+- Modal state is managed so that drafts are preserved across sign-in and modal close/reopen.
+
+### Authentication
+- Auth state is managed globally via context.
+- All prompt creation and saving actions are gated by authentication, but the UX allows unauthenticated users to start the process and finish after sign-in.
+
+### General
+- All major actions (create, search, filter, save) are accessible and consistent between public and authenticated views.
+- UI is built with Tailwind CSS and follows a clean, minimal, and accessible design.
+
+--- 

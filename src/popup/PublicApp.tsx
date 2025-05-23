@@ -134,7 +134,11 @@ const PublicApp = () => {
 
   const handleSave = (tool: Tool) => {
     // Redirect to sign in if trying to save while not authenticated
-    signInWithGoogle();
+    const handleSignIn = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      signInWithGoogle();
+    };
+    handleSignIn(new MouseEvent('click') as any);
   };
 
   const handleRate = (tool: Tool, rating: number) => {
