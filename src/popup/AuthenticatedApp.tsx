@@ -9,31 +9,65 @@ import { SearchableDropdown } from "../components/prompts/SearchableDropdown"
 
 const AVAILABLE_TAGS = {
   specialty: [
-    "primary_care",
-    "emergency",
-    "pediatrics",
-    "surgery",
-    "psychiatry"
+    'Allergy & Immunology',
+    'Cardiology',
+    'Dermatology',
+    'Emergency Medicine',
+    'Endocrinology',
+    'Gastroenterology',
+    'Geriatrics',
+    'Hematology/Oncology',
+    'Hospitalist Medicine',
+    'Infectious Diseases',
+    'Internal Medicine',
+    'Nephrology',
+    'Neurology',
+    'OB/GYN',
+    'Ophthalmology',
+    'Orthopedics',
+    'Otolaryngology (ENT)',
+    'Pediatrics',
+    'Physical Medicine & Rehab',
+    'Psychiatry',
+    'Pulmonology/Critical Care',
+    'Primary Care',
+    'Radiology',
+    'Rheumatology',
+    'Surgery'
   ],
   useCase: [
-    "handoff",
-    "communication",
-    "triage",
-    "documentation",
-    "workflow"
+    'Patient Education',
+    'Clinical Documentation',
+    'Decision Support',
+    'Workflow Automation',
+    'Triage',
+    'Medication Management',
+    'Discharge Planning',
+    'Quality & Safety Monitoring',
+    'Population Health Analytics',
+    'Care Coordination',
+    'Billing & Coding Assistance',
+    'Consultation',
+    'Referral',
+    'Assessment'
   ],
   userType: [
-    "physician",
-    "nurse",
-    "resident",
-    "student",
-    "admin"
+    'physician',
+    'nurse',
+    'resident',
+    'student',
+    'admin'
   ],
   appModel: [
-    "gpt4",
-    "claude",
-    "gemini",
-    "llama"
+    'ChatGPT',
+    'Claude',
+    'Gemini',
+    'LLaMA',
+    'Med-PaLM',
+    'Perplexity',
+    'Doximity GPT',
+    'OpenEvidence',
+    'Mistral'
   ]
 }
 
