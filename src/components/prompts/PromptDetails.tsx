@@ -23,12 +23,19 @@ export function PromptDetails({
   className
 }: PromptDetailsProps) {
   const [isClosing, setIsClosing] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const handleClose = () => {
     setIsClosing(true)
     setTimeout(() => {
       onClose()
     }, 200) // Match animation duration
+  }
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(prompt.content)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
   }
 
   return (
@@ -93,15 +100,18 @@ export function PromptDetails({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => navigator.clipboard.writeText(prompt.template)}
+                  onClick={handleCopy}
                   className="h-6 px-2"
                 >
                   <Copy className="h-3 w-3 mr-1" />
-                  <span className="text-xs">Copy</span>
+                  <span className="text-xs">{copied ? "Copied!" : "Copy"}</span>
                 </Button>
               </div>
-              <pre className="bg-slate-50 p-3 rounded-md text-sm overflow-x-auto font-mono">
-                {prompt.template}
+              <pre
+                className="bg-slate-50 p-3 rounded-md text-sm font-mono max-h-64 overflow-y-auto"
+                style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+              >
+                {prompt.content}
               </pre>
             </div>
             {/* Sources */}
