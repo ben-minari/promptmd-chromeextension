@@ -19,15 +19,15 @@ declare global {
   }
 }
 
-// Determine which client ID to use based on the environment
+// Get client ID based on environment
 const isProd = process.env.NODE_ENV === 'production'
 const clientId = isProd 
-  ? "725964297899-ph030pbskpcmrqvaemsmo93pp6an3keo.apps.googleusercontent.com"
-  : "725964297899-rne9qvn8ecd3kn9mo555vhi5442384kc.apps.googleusercontent.com"
+  ? process.env.PLASMO_PUBLIC_GOOGLE_CLIENT_ID_PROD
+  : process.env.PLASMO_PUBLIC_GOOGLE_CLIENT_ID_DEV
 
-// Log environment information for debugging
-console.log('Environment:', process.env.NODE_ENV)
-console.log('Using client ID:', clientId)
+if (!clientId) {
+  throw new Error(`Missing Google client ID for ${isProd ? 'production' : 'development'} environment`)
+}
 
 // Check for required environment variables
 const requiredEnvVars = {
@@ -39,17 +39,18 @@ const requiredEnvVars = {
   appId: process.env.PLASMO_PUBLIC_FIREBASE_APP_ID
 }
 
-// Log missing environment variables
-Object.entries(requiredEnvVars).forEach(([key, value]) => {
-  if (!value) {
-    console.error(`Missing required environment variable: ${key}`)
-  }
-})
+// Check for missing environment variables
+const missingVars = Object.entries(requiredEnvVars)
+  .filter(([_, value]) => !value)
+  .map(([key]) => key)
+
+if (missingVars.length > 0) {
+  throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`)
+}
 
 const firebaseConfig = {
   ...requiredEnvVars,
-  measurementId: process.env.PLASMO_PUBLIC_MEASUREMENT_ID,
-  clientId
+  measurementId: process.env.PLASMO_PUBLIC_MEASUREMENT_ID
 }
 
 // Initialize Firebase
