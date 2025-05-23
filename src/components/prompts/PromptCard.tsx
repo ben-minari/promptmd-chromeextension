@@ -12,6 +12,7 @@ interface PromptCardProps {
   onSave?: () => void
   onRate?: (rating: number) => void
   onShare?: () => void
+  onViewDetails?: () => void
   className?: string
 }
 
@@ -20,12 +21,14 @@ export function PromptCard({
   onSave,
   onRate,
   onShare,
+  onViewDetails,
   className
 }: PromptCardProps) {
   const { currentUser } = useAuth()
   const [isSaving, setIsSaving] = React.useState(false)
 
-  const handleSave = async () => {
+  const handleSave = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (!currentUser) return
     setIsSaving(true)
     try {
@@ -44,59 +47,62 @@ export function PromptCard({
   }
 
   return (
-    <Card variant="hover" className={cn("flex flex-col", className)}>
+    <Card
+      variant="hover"
+      className={cn("flex flex-col cursor-pointer hover:shadow-md transition-shadow", className)}
+      onClick={onViewDetails}
+      role="button"
+      tabIndex={0}
+    >
       <CardHeader>
         <CardTitle>{prompt.title}</CardTitle>
         <CardDescription>{prompt.description}</CardDescription>
       </CardHeader>
-      
       <CardContent className="flex-1">
-        <div className="space-y-2">
-          {Object.entries(prompt.tags).map(([category, tags]) => (
-            <div key={category} className="flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center rounded-full bg-teal-100 px-2.5 py-0.5 text-xs font-medium text-teal-800"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          ))}
+        <div className="flex flex-wrap gap-1">
+          {Object.entries(prompt.tags).map(([category, tags]) =>
+            tags.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800"
+              >
+                {tag}
+              </span>
+            ))
+          )}
         </div>
       </CardContent>
-
       <CardFooter className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onRate?.(5)}
-            className="text-amber-500 hover:text-amber-600"
+            onClick={e => { e.stopPropagation(); onRate?.(5); }}
+            className="text-amber-500 hover:text-amber-600 h-6 px-2"
           >
-            <Star className="h-4 w-4" />
-            <span className="ml-1">{prompt.ratingAvg.toFixed(1)}</span>
+            <Star className="h-3 w-3" />
+            <span className="ml-1 text-xs">{prompt.ratingAvg.toFixed(1)}</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={handleSave}
-            className="text-slate-600 hover:text-slate-800"
+            className="text-slate-600 hover:text-slate-800 h-6 px-2"
           >
-            <Bookmark className="h-4 w-4" />
-            <span className="ml-1">{prompt.saveCount}</span>
+            <Bookmark className="h-3 w-3" />
+            <span className="ml-1 text-xs">{prompt.saveCount}</span>
           </Button>
         </div>
-        
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onShare}
-          className="text-slate-600 hover:text-slate-800"
-        >
-          <Share2 className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={e => { e.stopPropagation(); onShare?.(); }}
+            className="text-slate-600 hover:text-slate-800 h-6 px-2"
+          >
+            <Share2 className="h-3 w-3" />
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   )

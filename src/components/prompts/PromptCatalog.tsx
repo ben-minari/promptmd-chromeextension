@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react"
 import { PromptCard } from "./PromptCard"
 import { SearchBar } from "./SearchBar"
 import { SearchableDropdown } from "./SearchableDropdown"
+import { PromptDetails } from "./PromptDetails"
 import type { Tool } from "../../services/tools-service"
 import { useAuth } from "../../contexts/AuthContext"
 import { toolsService } from "../../services/tools-service"
@@ -30,6 +31,7 @@ export function PromptCatalog({
 }: PromptCatalogProps) {
   const { currentUser } = useAuth()
   const [savedTools, setSavedTools] = React.useState<Set<string>>(new Set())
+  const [selectedPrompt, setSelectedPrompt] = useState<Tool | null>(null)
 
   useEffect(() => {
     if (currentUser) {
@@ -68,9 +70,25 @@ export function PromptCatalog({
             onSave={() => onSave?.(prompt)}
             onRate={(rating) => onRate?.(prompt, rating)}
             onShare={() => onShare?.(prompt)}
+            onViewDetails={() => setSelectedPrompt(prompt)}
           />
         ))}
       </div>
+
+      {selectedPrompt && (
+        <PromptDetails
+          prompt={selectedPrompt}
+          onClose={() => setSelectedPrompt(null)}
+          onSave={() => {
+            onSave?.(selectedPrompt)
+            setSelectedPrompt(null)
+          }}
+          onShare={() => {
+            onShare?.(selectedPrompt)
+            setSelectedPrompt(null)
+          }}
+        />
+      )}
     </div>
   )
 } 

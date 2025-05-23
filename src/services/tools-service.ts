@@ -23,6 +23,11 @@ export interface Tool {
   ratingAvg: number
   ratingCount: number
   isSaved?: boolean
+  sources?: Array<{
+    type: "url" | "user" | "text" | string
+    value: string
+    label?: string
+  }>
 }
 
 // Helper function to categorize a tag
