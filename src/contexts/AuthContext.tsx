@@ -2,10 +2,12 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import { 
   onAuthStateChanged,
   signOut,
+  signInWithCustomToken,
   type User 
 } from 'firebase/auth';
 import { auth } from '../utils/firebase';
 import { signInWithChromeIdentity, signOutChromeIdentity } from '../services/auth-service';
+import { getStoredAuthToken, storeAuthToken, removeAuthToken } from '../utils/storage';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -30,7 +32,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const initializeAuth = async () => {
+      try {
+        // Try to get stored token first
+        const storedToken = await getStoredAuthToken(currentUser?.uid || '');
+        if (storedToken) {
+          // Verify token with Firebase
+          const userCredential = await signInWithCustomToken(auth, storedToken);
+          setCurrentUser(userCredential.user);
+        }
+      } catch (error) {
+        console.error('Failed to initialize auth:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
+    
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // Get and store new token when user signs in
+        const token = await user.getIdToken();
+        await storeAuthToken(user.uid, token);
+      }
       setCurrentUser(user);
       setLoading(false);
     });
@@ -60,7 +85,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signOutChromeIdentity();
       // Then sign out from Firebase
       await signOut(auth);
-      // Clear the current user state
+      // Clear the current user state and remove stored token
+      if (currentUser) {
+        await removeAuthToken(currentUser.uid);
+      }
       setCurrentUser(null);
     } catch (error) {
       console.error("Logout failed", error);
@@ -95,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
