@@ -1,5 +1,6 @@
 import { db } from "../utils/firebase"
 import { collection, query, where, orderBy, limit, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, Timestamp, writeBatch } from "firebase/firestore"
+import { categorizeTag } from '../utils/tag-utils'
 
 export interface Tool {
   id?: string
@@ -28,34 +29,6 @@ export interface Tool {
     value: string
     label?: string
   }>
-}
-
-// Helper function to categorize a tag
-function categorizeTag(tag: string): { category: keyof Tool['tags'], tag: string } {
-  // Define tag mappings
-  const specialtyTags = ['primary_care', 'pediatrics', 'emergency', 'surgery', 'cardiology', 'neurology', 'orthopedics', 'dermatology', 'psychiatry', 'obgyn']
-  const useCaseTags = ['handoff', 'triage', 'documentation', 'assessment', 'discharge', 'followup', 'referral', 'consultation', 'education', 'workflow']
-  const userTypeTags = ['clinician', 'nurse', 'resident', 'attending', 'specialist', 'practitioner', 'manager', 'coordinator', 'educator', 'student']
-  const appModelTags = ['gpt-4', 'gpt-3.5', 'claude', 'palm', 'llama', 'mistral', 'gemini', 'custom']
-
-  // Normalize tag for comparison
-  const normalizedTag = tag.toLowerCase().replace(/\s+/g, '_')
-
-  if (specialtyTags.includes(normalizedTag)) {
-    return { category: 'specialty', tag: normalizedTag }
-  }
-  if (useCaseTags.includes(normalizedTag)) {
-    return { category: 'useCase', tag: normalizedTag }
-  }
-  if (userTypeTags.includes(normalizedTag)) {
-    return { category: 'userType', tag: normalizedTag }
-  }
-  if (appModelTags.includes(normalizedTag)) {
-    return { category: 'appModel', tag: normalizedTag }
-  }
-
-  // Default to useCase if no match found
-  return { category: 'useCase', tag: normalizedTag }
 }
 
 export const toolsService = {

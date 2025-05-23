@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState, useEffect } from "react"
 import { useAuth } from "../contexts/AuthContext"
 import { Button } from "../components/ui/Button"
 import { PromptCatalog } from "../components/prompts/PromptCatalog"
@@ -6,6 +6,9 @@ import { toolsService } from "../services/tools-service"
 import type { Tool } from "../services/tools-service"
 import { Header } from "../components/layout/Header"
 import { SearchableDropdown } from "../components/prompts/SearchableDropdown"
+import { CreatePromptModal } from "../components/prompts/CreatePromptModal"
+import { FloatingActionButton } from "../components/ui/FloatingActionButton"
+import Fuse from "fuse.js"
 
 const AVAILABLE_TAGS = {
   specialty: [
@@ -75,24 +78,20 @@ type TagCategory = 'specialty' | 'useCase' | 'userType' | 'appModel';
 
 export default function AuthenticatedApp() {
   const { currentUser, logout, switchAccount } = useAuth()
-  const [tools, setTools] = React.useState<Tool[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [selectedTags, setSelectedTags] = React.useState<{
-    specialty: string[];
-    useCase: string[];
-    userType: string[];
-    appModel: string[];
-  }>({
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [tools, setTools] = useState<Tool[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedTags, setSelectedTags] = useState<Record<TagCategory, string[]>>({
     specialty: [],
     useCase: [],
     userType: [],
     appModel: []
-  });
-  const [isFiltersOpen, setIsFiltersOpen] = React.useState(false);
-  const [searchQuery, setSearchQuery] = React.useState("");
+  })
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  React.useEffect(() => {
+  useEffect(() => {
     const loadTools = async () => {
       setIsLoading(true)
       setError(null)
@@ -149,16 +148,53 @@ export default function AuthenticatedApp() {
     console.log("Sharing tool:", tool)
   }
 
-  // Filter tools based on search and selected tags
-  const filteredTools = tools.filter((tool) => {
-    const matchesSearch = tool.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tool.description.toLowerCase().includes(searchQuery.toLowerCase())
+  const handleCreatePrompt = () => {
+    setIsCreateModalOpen(true)
+  }
+
+  const handlePromptSubmit = async (prompt: Omit<Tool, "id" | "createdAt" | "updatedAt" | "saveCount" | "ratingAvg" | "ratingCount">) => {
+    try {
+      const newPrompt = await toolsService.createTool({
+        ...prompt,
+        authorId: currentUser!.uid
+      })
+      // Refresh the prompts list
+      loadTools()
+    } catch (error) {
+      console.error("Failed to create prompt:", error)
+    }
+  }
+
+  // Fuzzy search setup
+  const fuse = new Fuse(tools, {
+    keys: [
+      "title",
+      "description",
+      { name: "tags.specialty", weight: 0.7 },
+      { name: "tags.useCase", weight: 0.7 },
+      { name: "tags.userType", weight: 0.7 },
+      { name: "tags.appModel", weight: 0.7 }
+    ],
+    threshold: 0.35,
+    includeMatches: true
+  });
+
+  let fuseResults: typeof tools = tools;
+  let matchMap: Record<string, Fuse.FuseResult<Tool>["matches"]> = {};
+  if (searchQuery.trim()) {
+    const results = fuse.search(searchQuery.trim());
+    fuseResults = results.map(r => r.item);
+    matchMap = Object.fromEntries(results.map(r => [r.item.id!, r.matches]));
+  }
+
+  // Combine with tag filters
+  const filteredTools = fuseResults.filter((tool) => {
     const matchesTags = Object.entries(selectedTags).every(([category, tags]) => {
-      if (tags.length === 0) return true
-      return tags.every(tag => tool.tags[category as keyof typeof tool.tags]?.includes(tag))
-    })
-    return matchesSearch && matchesTags
-  })
+      if (tags.length === 0) return true;
+      return tags.every(tag => tool.tags[category as keyof typeof tool.tags]?.includes(tag));
+    });
+    return matchesTags;
+  });
 
   if (error) {
     return (
@@ -170,7 +206,7 @@ export default function AuthenticatedApp() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="h-full flex flex-col">
       <Header 
         onSearch={setSearchQuery}
         onOpenFilters={() => setIsFiltersOpen((open) => !open)}
@@ -266,9 +302,22 @@ export default function AuthenticatedApp() {
             onSave={handleSave}
             onRate={handleRate}
             onShare={handleShare}
+            onCreatePrompt={handleCreatePrompt}
+            matchMap={matchMap}
           />
         )}
       </div>
+
+      {/* Create Prompt Modal */}
+      <CreatePromptModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSubmit={handlePromptSubmit}
+        availableTags={AVAILABLE_TAGS}
+      />
+
+      {/* Floating Action Button */}
+      <FloatingActionButton onClick={handleCreatePrompt} />
     </div>
   )
 } 

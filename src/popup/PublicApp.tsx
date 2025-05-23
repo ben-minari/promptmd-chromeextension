@@ -6,6 +6,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { toolsService, type Tool } from '../services/tools-service';
 import { Header } from '../components/layout/Header';
 import { SearchableDropdown } from '../components/prompts/SearchableDropdown';
+import { CreatePromptModal } from '../components/prompts/CreatePromptModal';
+import { FloatingActionButton } from '../components/ui/FloatingActionButton';
+import Fuse from "fuse.js"
 
 type TagCategory = 'specialty' | 'useCase' | 'userType' | 'appModel';
 
@@ -74,7 +77,7 @@ const AVAILABLE_TAGS = {
 } as const;
 
 const PublicApp = () => {
-  const { signInWithGoogle } = useAuth();
+  const { currentUser, signInWithGoogle } = useAuth();
   const [tools, setTools] = useState<Tool[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +93,10 @@ const PublicApp = () => {
     appModel: []
   });
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+  const [draftPrompt, setDraftPrompt] = useState<Omit<Tool, "id" | "createdAt" | "updatedAt" | "saveCount" | "ratingAvg" | "ratingCount"> | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     loadTools();
@@ -140,6 +147,65 @@ const PublicApp = () => {
     console.log('Sharing tool:', tool);
   };
 
+  const handleCreatePrompt = () => {
+    setIsCreateModalOpen(true);
+  };
+
+  const handlePromptSubmit = async (prompt: Omit<Tool, "id" | "createdAt" | "updatedAt" | "saveCount" | "ratingAvg" | "ratingCount">) => {
+    if (!currentUser) {
+      setDraftPrompt(prompt);
+      setIsSignInModalOpen(true);
+      setIsCreateModalOpen(false);
+      return;
+    }
+    try {
+      const newPrompt = await toolsService.createTool({
+        ...prompt,
+        authorId: currentUser.uid
+      });
+      loadTools();
+    } catch (error) {
+      console.error("Failed to create prompt:", error);
+    }
+  };
+
+  const handleSignInSuccess = async () => {
+    if (draftPrompt) {
+      setIsCreateModalOpen(true);
+    }
+  };
+
+  // Fuzzy search setup
+  const fuse = new Fuse(tools, {
+    keys: [
+      "title",
+      "description",
+      { name: "tags.specialty", weight: 0.7 },
+      { name: "tags.useCase", weight: 0.7 },
+      { name: "tags.userType", weight: 0.7 },
+      { name: "tags.appModel", weight: 0.7 }
+    ],
+    threshold: 0.35, // Adjust for strictness
+    includeMatches: true
+  });
+
+  let fuseResults: typeof tools = tools;
+  let matchMap: Record<string, Fuse.FuseResult<Tool>["matches"]> = {};
+  if (searchQuery.trim()) {
+    const results = fuse.search(searchQuery.trim());
+    fuseResults = results.map(r => r.item);
+    matchMap = Object.fromEntries(results.map(r => [r.item.id!, r.matches]));
+  }
+
+  // Combine with tag filters
+  const filteredTools = fuseResults.filter((tool) => {
+    const matchesTags = Object.entries(selectedTags).every(([category, tags]) => {
+      if (tags.length === 0) return true;
+      return tags.every(tag => tool.tags[category as keyof typeof tool.tags]?.includes(tag));
+    });
+    return matchesTags;
+  });
+
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center p-4">
@@ -150,9 +216,9 @@ const PublicApp = () => {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="h-full flex flex-col">
       <Header 
-        onSearch={(query) => console.log('Search:', query)}
+        onSearch={setSearchQuery}
         onOpenFilters={() => setIsFiltersOpen((open) => !open)}
       />
       {/* Filters Sidebar */}
@@ -224,6 +290,13 @@ const PublicApp = () => {
             Discover and use AI prompts for healthcare professionals.
             Sign in to save prompts and create your own.
           </p>
+          <Button
+            variant="primary"
+            className="mt-4"
+            onClick={handleCreatePrompt}
+          >
+            Create Your First Prompt
+          </Button>
         </div>
         {/* Selected Filters as Chips */}
         <div className="flex flex-wrap gap-2 mb-4">
@@ -248,7 +321,7 @@ const PublicApp = () => {
           </div>
         ) : (
           <PromptCatalog
-            prompts={tools}
+            prompts={filteredTools}
             availableTags={{
               specialty: [...AVAILABLE_TAGS.specialty],
               useCase: [...AVAILABLE_TAGS.useCase],
@@ -258,9 +331,41 @@ const PublicApp = () => {
             onSave={handleSave}
             onRate={handleRate}
             onShare={handleShare}
+            onCreatePrompt={handleCreatePrompt}
+            matchMap={matchMap}
           />
         )}
       </div>
+
+      {/* Create Prompt Modal */}
+      <CreatePromptModal
+        isOpen={isCreateModalOpen}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          setDraftPrompt(null);
+        }}
+        onSubmit={prompt => {
+          handlePromptSubmit(prompt);
+          setDraftPrompt(null);
+        }}
+        availableTags={{
+          specialty: [...AVAILABLE_TAGS.specialty],
+          useCase: [...AVAILABLE_TAGS.useCase],
+          userType: [...AVAILABLE_TAGS.userType],
+          appModel: [...AVAILABLE_TAGS.appModel]
+        }}
+        isAuthenticated={!!currentUser}
+        onSignIn={(draft) => {
+          setDraftPrompt(draft);
+          setIsCreateModalOpen(false);
+          setIsSignInModalOpen(true);
+          signInWithGoogle();
+        }}
+        initialDraft={draftPrompt}
+      />
+
+      {/* Floating Action Button */}
+      <FloatingActionButton onClick={handleCreatePrompt} />
     </div>
   );
 };

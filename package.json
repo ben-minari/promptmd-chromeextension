@@ -14,7 +14,7 @@
     "clsx": "^2.1.1",
     "dotenv": "^16.5.0",
     "firebase": "^11.7.3",
-    "firebase-admin": "^13.4.0",
+    "fuse.js": "^7.1.0",
     "lucide-react": "^0.511.0",
     "plasmo": "0.90.5",
     "react": "18.2.0",
@@ -29,12 +29,16 @@
     "@types/react": "18.2.48",
     "@types/react-dom": "18.2.18",
     "autoprefixer": "^10.4.16",
+    "csv-parse": "^5.6.0",
     "dotenv-cli": "^8.0.0",
+    "firebase-admin": "^13.4.0",
     "postcss": "^8.4.38",
     "prettier": "3.2.4",
     "tailwindcss": "^3.4.1",
     "ts-node": "^10.9.2",
-    "typescript": "5.3.3"
+    "tsx": "^4.19.4",
+    "typescript": "5.3.3",
+    "uuid": "^11.1.0"
   },
   "manifest": {
     "host_permissions": [

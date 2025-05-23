@@ -6,6 +6,7 @@ import type { Tool } from "../../services/tools-service"
 import { useAuth } from "../../contexts/AuthContext"
 import { toolsService } from "../../services/tools-service"
 import { cn } from "../../utils/cn"
+import { getTagColor } from '../../utils/tag-utils'
 
 interface PromptCardProps {
   prompt: Tool
@@ -14,6 +15,28 @@ interface PromptCardProps {
   onShare?: () => void
   onViewDetails?: () => void
   className?: string
+  match?: any
+}
+
+function highlightText(text: string, indices: [number, number][]) {
+  if (!indices || indices.length === 0) return text;
+  // Find the longest contiguous match
+  let longest = indices[0];
+  for (const pair of indices) {
+    if ((pair[1] - pair[0]) > (longest[1] - longest[0])) {
+      longest = pair;
+    }
+  }
+  const [start, end] = longest;
+  return (
+    <>
+      {start > 0 && text.slice(0, start)}
+      <span className="bg-yellow-100 text-yellow-900 rounded px-0.5">
+        {text.slice(start, end + 1)}
+      </span>
+      {end + 1 < text.length && text.slice(end + 1)}
+    </>
+  );
 }
 
 export function PromptCard({
@@ -22,7 +45,8 @@ export function PromptCard({
   onRate,
   onShare,
   onViewDetails,
-  className
+  className,
+  match
 }: PromptCardProps) {
   const { currentUser } = useAuth()
   const [isSaving, setIsSaving] = React.useState(false)
@@ -46,6 +70,25 @@ export function PromptCard({
     }
   }
 
+  // Find matches for title, description, and tags
+  let titleMatch: [number, number][] = [];
+  let descMatch: [number, number][] = [];
+  let tagMatches: Record<string, Record<string, [number, number][]>> = {};
+  if (match) {
+    for (const m of match) {
+      if (m.key === "title") titleMatch = m.indices;
+      if (m.key === "description") descMatch = m.indices;
+      if (m.key && m.key.startsWith("tags.")) {
+        const tagKey = m.key.split(".")[1];
+        if (!tagMatches[tagKey]) tagMatches[tagKey] = {};
+        // For array fields, m.value is the tag string, m.indices is an array of [start, end] pairs
+        if (typeof m.value === "string" && Array.isArray(m.indices) && m.indices.length > 0 && Array.isArray(m.indices[0])) {
+          tagMatches[tagKey][m.value] = m.indices.filter(x => Array.isArray(x) && x.length === 2);
+        }
+      }
+    }
+  }
+
   return (
     <Card
       variant="hover"
@@ -55,8 +98,8 @@ export function PromptCard({
       tabIndex={0}
     >
       <CardHeader>
-        <CardTitle>{prompt.title}</CardTitle>
-        <CardDescription>{prompt.description}</CardDescription>
+        <CardTitle>{highlightText(prompt.title, titleMatch)}</CardTitle>
+        <CardDescription>{highlightText(prompt.description, descMatch)}</CardDescription>
       </CardHeader>
       <CardContent className="flex-1">
         <div className="flex flex-wrap gap-1">
@@ -64,9 +107,11 @@ export function PromptCard({
             tags.map((tag) => (
               <span
                 key={tag}
-                className="inline-flex items-center rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800"
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getTagColor(category)}`}
               >
-                {tag}
+                {match && tagMatches[category] && tagMatches[category][tag]
+                  ? highlightText(tag, tagMatches[category][tag])
+                  : tag}
               </span>
             ))
           )}

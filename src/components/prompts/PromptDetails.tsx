@@ -4,6 +4,7 @@ import { ArrowLeft, Star, Bookmark, Share2, Copy, Users, Edit, Link as LinkIcon,
 import type { Tool } from "../../services/tools-service"
 import { cn } from "../../utils/cn"
 import "../../styles/animations.css"
+import { getTagColor } from '../../utils/tag-utils'
 
 interface PromptDetailsProps {
   prompt: Tool
@@ -86,7 +87,7 @@ export function PromptDetails({
                 tags.map((tag) => (
                   <span
                     key={tag}
-                    className="inline-flex items-center rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800"
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getTagColor(category)}`}
                   >
                     {tag}
                   </span>

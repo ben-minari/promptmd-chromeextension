@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react"
 import { Search, X } from "lucide-react"
 import { cn } from "../../utils/cn"
+import { categorizeTag, getTagColor } from "../../utils/tag-utils"
 
 interface SearchableDropdownProps {
   label: string
@@ -30,7 +31,7 @@ export function SearchableDropdown({
 
   // Filter options based on search query
   const filteredOptions = options.filter(option =>
-    option.toLowerCase().includes(searchQuery.toLowerCase())
+    option.toLowerCase().includes(searchQuery.toLowerCase()) && !selectedOptions.includes(option)
   )
 
   // Close dropdown when clicking outside
@@ -52,41 +53,50 @@ export function SearchableDropdown({
 
   return (
     <div className={cn("relative", className)} ref={dropdownRef}>
-      {/* Selected Options Display */}
-      <div className="flex flex-wrap gap-2 mb-2">
-        {selectedOptions.map(option => (
-          <div
-            key={option}
-            className="flex items-center gap-1 px-2 py-1 text-sm bg-teal-100 text-teal-700 rounded-md"
-          >
-            <span>{option}</span>
-            <button
-              onClick={() => onRemove(option)}
-              className="hover:text-teal-900"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {/* Dropdown Button as Input */}
+      {/* Input area with chips inside */}
       <div
-        className="w-full flex items-center border border-slate-200 rounded-md hover:border-slate-300 focus-within:ring-2 focus-within:ring-teal-500 bg-white"
-        onClick={() => setIsOpen(true)}
+        className="w-full flex items-center border border-slate-200 rounded-md hover:border-slate-300 focus-within:ring-2 focus-within:ring-teal-500 bg-white px-2 py-1 flex-wrap min-h-[40px]"
+        onClick={() => {
+          setIsOpen(true)
+          inputRef.current?.focus()
+        }}
+        style={{ cursor: "text" }}
       >
+        {selectedOptions.map(option => {
+          const { category } = categorizeTag(option)
+          const colorClass = getTagColor(category)
+          return (
+            <span
+              key={option}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 text-xs rounded-full mr-1 mb-1",
+                colorClass
+              )}
+            >
+              {option}
+              <button
+                type="button"
+                onClick={e => {
+                  e.stopPropagation()
+                  onRemove(option)
+                }}
+                className="hover:text-inherit ml-1"
+                tabIndex={-1}
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )
+        })}
         <input
           ref={inputRef}
           type="text"
-          value={isOpen ? searchQuery : selectedOptions[0] || ""}
-          onChange={e => {
-            setSearchQuery(e.target.value)
-            if (!isOpen) setIsOpen(true)
-          }}
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
           onFocus={() => setIsOpen(true)}
-          placeholder={isOpen || !selectedOptions.length ? label : selectedOptions[0]}
-          className="flex-1 px-3 py-2 text-sm bg-transparent outline-none"
-          readOnly={!isOpen}
+          placeholder={selectedOptions.length === 0 ? label : ""}
+          className="flex-1 px-2 py-1 text-sm bg-transparent outline-none min-w-[80px]"
+          style={{ minWidth: 0 }}
         />
         <button
           type="button"
@@ -104,15 +114,33 @@ export function SearchableDropdown({
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg">
+        <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg ring-2 ring-teal-200">
+          <div className="flex justify-end p-1">
+            <button
+              type="button"
+              className="text-slate-400 hover:text-slate-600 p-1"
+              aria-label="Close dropdown"
+              onClick={e => {
+                e.stopPropagation()
+                setIsOpen(false)
+                setSearchQuery("")
+              }}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
           <div className="max-h-60 overflow-auto">
             {filteredOptions.length > 0 ? (
               filteredOptions.map(option => (
                 <button
                   key={option}
-                  onClick={() => {
+                  type="button"
+                  onClick={e => {
+                    e.preventDefault()
+                    e.stopPropagation()
                     onSelect(option)
                     setSearchQuery("")
+                    // Keep dropdown open for multi-select
                   }}
                   className={cn(
                     "w-full px-4 py-2 text-sm text-left hover:bg-slate-50",

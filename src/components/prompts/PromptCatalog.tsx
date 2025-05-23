@@ -3,6 +3,7 @@ import { PromptCard } from "./PromptCard"
 import { SearchBar } from "./SearchBar"
 import { SearchableDropdown } from "./SearchableDropdown"
 import { PromptDetails } from "./PromptDetails"
+import { Button } from "../ui/Button"
 import type { Tool } from "../../services/tools-service"
 import { useAuth } from "../../contexts/AuthContext"
 import { toolsService } from "../../services/tools-service"
@@ -18,7 +19,9 @@ interface PromptCatalogProps {
   onSave?: (prompt: Tool) => void
   onRate?: (prompt: Tool, rating: number) => void
   onShare?: (prompt: Tool) => void
+  onCreatePrompt?: () => void
   className?: string
+  matchMap?: Record<string, any>
 }
 
 export function PromptCatalog({
@@ -27,7 +30,9 @@ export function PromptCatalog({
   onSave,
   onRate,
   onShare,
-  className
+  onCreatePrompt,
+  className,
+  matchMap = {}
 }: PromptCatalogProps) {
   const { currentUser } = useAuth()
   const [savedTools, setSavedTools] = React.useState<Set<string>>(new Set())
@@ -51,11 +56,20 @@ export function PromptCatalog({
 
   if (prompts.length === 0) {
     return (
-      <div>
+      <div className="text-center py-8">
         <h3 className="text-lg font-semibold text-slate-800">No prompts found</h3>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-slate-600 mb-4">
           Try adjusting your search or filters
         </p>
+        {onCreatePrompt && (
+          <Button
+            variant="primary"
+            onClick={onCreatePrompt}
+            className="mt-4"
+          >
+            Create Your First Prompt
+          </Button>
+        )}
       </div>
     )
   }
@@ -71,6 +85,7 @@ export function PromptCatalog({
             onRate={(rating) => onRate?.(prompt, rating)}
             onShare={() => onShare?.(prompt)}
             onViewDetails={() => setSelectedPrompt(prompt)}
+            match={matchMap[prompt.id!]}
           />
         ))}
       </div>
