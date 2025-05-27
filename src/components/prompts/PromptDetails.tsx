@@ -5,6 +5,9 @@ import type { Tool } from "../../services/tools-service"
 import { cn } from "../../utils/cn"
 import "../../styles/animations.css"
 import { getTagColor } from '../../utils/tag-utils'
+import { TagChip } from "../ui/TagChip"
+import { useAuth } from "../../contexts/AuthContext"
+import { toolsService } from "../../services/tools-service"
 
 interface PromptDetailsProps {
   prompt: Tool
@@ -23,8 +26,10 @@ export function PromptDetails({
   onEdit,
   className
 }: PromptDetailsProps) {
+  const { currentUser } = useAuth()
   const [isClosing, setIsClosing] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   const handleClose = () => {
     setIsClosing(true)
@@ -38,6 +43,16 @@ export function PromptDetails({
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
   }
+
+  const handleSave = async () => {
+    if (!currentUser || !prompt.id || isSaving) return;
+    setIsSaving(true);
+    try {
+      await onSave();
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <>
@@ -85,12 +100,7 @@ export function PromptDetails({
             <div className="flex flex-wrap gap-1 mb-2">
               {Object.entries(prompt.tags).map(([category, tags]) =>
                 tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getTagColor(category)}`}
-                  >
-                    {tag}
-                  </span>
+                  <TagChip key={tag} tag={tag} category={category} />
                 ))
               )}
             </div>
@@ -195,11 +205,17 @@ export function PromptDetails({
             </Button>
             <Button 
               variant="ghost" 
-              onClick={onSave}
-              className="h-8 px-3"
+              onClick={handleSave}
+              disabled={isSaving || !currentUser}
+              className={cn(
+                "h-8 px-3",
+                prompt.isSaved ? "text-blue-600 hover:text-blue-700" : "text-slate-600 hover:text-slate-800"
+              )}
             >
               <Bookmark className="h-4 w-4 mr-1" />
-              <span className="text-sm">Save</span>
+              <span className="text-sm">
+                {isSaving ? "Saving..." : prompt.isSaved ? "Saved" : currentUser ? "Save" : "Sign in to Save"}
+              </span>
             </Button>
             {onEdit && (
               <Button 

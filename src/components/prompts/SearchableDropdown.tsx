@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react"
 import { Search, X } from "lucide-react"
 import { cn } from "../../utils/cn"
 import { categorizeTag, getTagColor } from "../../utils/tag-utils"
+import { TagChip } from "../ui/TagChip"
 
 interface SearchableDropdownProps {
   label: string
@@ -64,16 +65,8 @@ export function SearchableDropdown({
       >
         {selectedOptions.map(option => {
           const { category } = categorizeTag(option)
-          const colorClass = getTagColor(category)
           return (
-            <span
-              key={option}
-              className={cn(
-                "flex items-center gap-1 px-2 py-1 text-xs rounded-full mr-1 mb-1",
-                colorClass
-              )}
-            >
-              {option}
+            <TagChip key={option} tag={option} category={category}>
               <button
                 type="button"
                 onClick={e => {
@@ -85,7 +78,7 @@ export function SearchableDropdown({
               >
                 <X className="w-3 h-3" />
               </button>
-            </span>
+            </TagChip>
           )
         })}
         <input

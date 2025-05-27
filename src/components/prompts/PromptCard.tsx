@@ -51,29 +51,13 @@ export function PromptCard({
 }: PromptCardProps) {
   const { currentUser } = useAuth()
   const [isSaving, setIsSaving] = React.useState(false)
-  const [isSaved, setIsSaved] = React.useState(prompt.isSaved)
 
   const handleSave = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!currentUser || !prompt.id || isSaving) return;
-    console.log('handleSave called in PromptCard, current isSaved:', isSaved);
     setIsSaving(true);
     try {
-      if (isSaved) {
-        await toolsService.unsaveTool(currentUser.uid, prompt.id);
-        console.log('Tool unsaved successfully in PromptCard');
-        setIsSaved(false);
-      } else {
-        await toolsService.saveTool(currentUser.uid, prompt.id);
-        console.log('Tool saved successfully in PromptCard');
-        setIsSaved(true);
-      }
-      // Call onSave to update parent components
-      onSave?.();
-    } catch (error) {
-      console.error("Error in handleSave:", error);
-      // Revert the state if there was an error
-      setIsSaved(!isSaved);
+      await onSave?.();
     } finally {
       setIsSaving(false);
     }
@@ -134,10 +118,10 @@ export function PromptCard({
             variant="ghost"
             size="sm"
             onClick={handleSave}
-            disabled={isSaving}
+            disabled={isSaving || !currentUser}
             className={cn(
               "h-6 px-2 group relative",
-              isSaved ? "text-blue-600 hover:text-blue-700" : "text-slate-600 hover:text-slate-800"
+              prompt.isSaved ? "text-blue-600 hover:text-blue-700" : "text-slate-600 hover:text-slate-800"
             )}
           >
             <Bookmark className="h-3 w-3" />
@@ -145,7 +129,7 @@ export function PromptCard({
               {isSaving ? "Saving..." : prompt.saveCount}
             </span>
             <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-              {isSaving ? "Saving..." : isSaved ? "Saved" : "Click to Save"}
+              {isSaving ? "Saving..." : prompt.isSaved ? "Saved" : currentUser ? "Click to Save" : "Sign in to Save"}
             </span>
           </Button>
         </div>

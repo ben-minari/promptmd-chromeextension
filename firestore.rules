@@ -22,6 +22,11 @@ service cloud.firestore {
       // Only the owner can update their published tools
       allow update: if isOwner(resource.data.authorId) 
         && resource.data.status == "published";
+      
+      // Allow authenticated users to update saveCount
+      allow update: if isAuthenticated() 
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['saveCount', 'updatedAt']);
     }
 
     // User's saved tools subcollection

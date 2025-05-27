@@ -1,6 +1,7 @@
 import { db } from "../utils/firebase"
-import { collection, query, where, orderBy, limit, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, Timestamp, writeBatch } from "firebase/firestore"
+import { collection, query, where, orderBy, limit, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, Timestamp, writeBatch, setDoc, increment, serverTimestamp } from "firebase/firestore"
 import { categorizeTag } from '../utils/tag-utils'
+import { auth } from "../utils/firebase"
 
 export interface Tool {
   id?: string
@@ -24,6 +25,11 @@ export interface Tool {
   ratingAvg: number
   ratingCount: number
   isSaved?: boolean
+  useCount?: number
+  example?: {
+    input: string
+    output: string
+  }
   sources?: Array<{
     type: "url" | "user" | "text" | string
     value: string
@@ -41,7 +47,24 @@ export const toolsService = {
       limit(limitCount)
     )
     const snapshot = await getDocs(q)
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tool))
+    const tools = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tool))
+    
+    // Get the current user's saved tools
+    const currentUser = auth.currentUser
+    if (currentUser) {
+      const savedToolsRef = await getDocs(
+        collection(db, "users", currentUser.uid, "savedTools")
+      )
+      const savedToolIds = new Set(savedToolsRef.docs.map(doc => doc.id))
+      
+      // Mark tools as saved if they're in the user's saved tools
+      return tools.map(tool => ({
+        ...tool,
+        isSaved: savedToolIds.has(tool.id!)
+      }))
+    }
+    
+    return tools
   },
 
   async getToolsByTag(category: keyof Tool['tags'], tag: string, limitCount = 20) {
@@ -54,7 +77,24 @@ export const toolsService = {
       limit(limitCount)
     )
     const snapshot = await getDocs(q)
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tool))
+    const tools = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tool))
+    
+    // Get the current user's saved tools
+    const currentUser = auth.currentUser
+    if (currentUser) {
+      const savedToolsRef = await getDocs(
+        collection(db, "users", currentUser.uid, "savedTools")
+      )
+      const savedToolIds = new Set(savedToolsRef.docs.map(doc => doc.id))
+      
+      // Mark tools as saved if they're in the user's saved tools
+      return tools.map(tool => ({
+        ...tool,
+        isSaved: savedToolIds.has(tool.id!)
+      }))
+    }
+    
+    return tools
   },
 
   async getToolById(id: string) {
@@ -92,33 +132,26 @@ export const toolsService = {
   },
 
   async saveTool(userId: string, toolId: string) {
-    const savedToolRef = doc(db, "users", userId, "savedTools", toolId)
-    await addDoc(collection(db, "savedTools"), {
-      toolId,
-      userId,
-      savedAt: Timestamp.now()
-    })
-    
-    const toolRef = doc(db, "tools", toolId)
-    const toolSnap = await getDoc(toolRef)
-    if (toolSnap.exists()) {
-      await updateDoc(toolRef, {
-        saveCount: (toolSnap.data().saveCount || 0) + 1
-      })
+    try {
+      const savedToolRef = doc(db, `users/${userId}/savedTools/${toolId}`);
+      await setDoc(savedToolRef, { savedAt: serverTimestamp() });
+      const toolRef = doc(db, 'tools', toolId);
+      await updateDoc(toolRef, { saveCount: increment(1) });
+    } catch (error) {
+      console.error('Error saving tool:', error);
+      throw error;
     }
   },
 
   async unsaveTool(userId: string, toolId: string) {
-    const savedToolRef = doc(db, "users", userId, "savedTools", toolId)
-    await deleteDoc(savedToolRef)
-    
-    const toolRef = doc(db, "tools", toolId)
-    const toolSnap = await getDoc(toolRef)
-    if (toolSnap.exists()) {
-      const currentCount = toolSnap.data().saveCount || 0
-      await updateDoc(toolRef, {
-        saveCount: Math.max(0, currentCount - 1)
-      })
+    try {
+      const savedToolRef = doc(db, `users/${userId}/savedTools/${toolId}`);
+      await deleteDoc(savedToolRef);
+      const toolRef = doc(db, 'tools', toolId);
+      await updateDoc(toolRef, { saveCount: increment(-1) });
+    } catch (error) {
+      console.error('Error unsaving tool:', error);
+      throw error;
     }
   },
 
@@ -137,7 +170,12 @@ export const toolsService = {
       )
     )
     
-    return toolsRef.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tool))
+    // Mark all tools as saved since they're from the user's saved tools
+    return toolsRef.docs.map(doc => ({ 
+      id: doc.id, 
+      ...doc.data(),
+      isSaved: true 
+    } as Tool))
   },
 
   async migrateTags() {
@@ -202,7 +240,24 @@ export const toolsService = {
       orderBy("updatedAt", "desc")
     )
     const snapshot = await getDocs(q)
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tool))
+    const tools = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tool))
+    
+    // Get the current user's saved tools
+    const currentUser = auth.currentUser
+    if (currentUser) {
+      const savedToolsRef = await getDocs(
+        collection(db, "users", currentUser.uid, "savedTools")
+      )
+      const savedToolIds = new Set(savedToolsRef.docs.map(doc => doc.id))
+      
+      // Mark tools as saved if they're in the user's saved tools
+      return tools.map(tool => ({
+        ...tool,
+        isSaved: savedToolIds.has(tool.id!)
+      }))
+    }
+    
+    return tools
   },
 
   async getDraftTools(userId: string) {
@@ -213,6 +268,23 @@ export const toolsService = {
       orderBy("updatedAt", "desc")
     )
     const snapshot = await getDocs(q)
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tool))
+    const tools = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tool))
+    
+    // Get the current user's saved tools
+    const currentUser = auth.currentUser
+    if (currentUser) {
+      const savedToolsRef = await getDocs(
+        collection(db, "users", currentUser.uid, "savedTools")
+      )
+      const savedToolIds = new Set(savedToolsRef.docs.map(doc => doc.id))
+      
+      // Mark tools as saved if they're in the user's saved tools
+      return tools.map(tool => ({
+        ...tool,
+        isSaved: savedToolIds.has(tool.id!)
+      }))
+    }
+    
+    return tools
   }
 } 

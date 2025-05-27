@@ -71,11 +71,15 @@ export function PromptCatalog({
 
       {selectedPrompt && (
         <PromptDetails
-          prompt={selectedPrompt}
+          prompt={prompts.find(p => p.id === selectedPrompt.id) || selectedPrompt}
           onClose={() => setSelectedPrompt(null)}
           onSave={() => {
-            onSave?.(selectedPrompt)
-            setSelectedPrompt(null)
+            onSave?.(selectedPrompt);
+            setSelectedPrompt(prev => {
+              if (!prev) return null;
+              const updated = prompts.find(p => p.id === prev.id);
+              return updated ? { ...updated } : prev;
+            });
           }}
           onShare={() => {
             onShare?.(selectedPrompt)

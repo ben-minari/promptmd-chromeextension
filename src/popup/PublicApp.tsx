@@ -9,6 +9,7 @@ import { SearchableDropdown } from '../components/prompts/SearchableDropdown';
 import { CreatePromptModal } from '../components/prompts/CreatePromptModal';
 import { FloatingActionButton } from '../components/ui/FloatingActionButton';
 import Fuse, { FuseResult } from "fuse.js"
+import { TagChip } from '../components/ui/TagChip';
 
 type TagCategory = 'specialty' | 'useCase' | 'userType' | 'appModel';
 
@@ -313,8 +314,7 @@ const PublicApp = ({ isFiltersOpen, setIsFiltersOpen }: PublicAppProps) => {
         <div className="flex flex-wrap gap-2 mb-4">
           {Object.entries(selectedTags).flatMap(([category, tags]) =>
             tags.map(tag => (
-              <span key={category + tag} className="flex items-center gap-1 px-2 py-1 text-xs bg-teal-100 text-teal-700 rounded-full">
-                <span>{tag}</span>
+              <TagChip key={category + tag} tag={tag} category={category}>
                 <button
                   className="hover:text-teal-900"
                   onClick={() => handleTagRemove(category as TagCategory, tag)}
@@ -322,7 +322,7 @@ const PublicApp = ({ isFiltersOpen, setIsFiltersOpen }: PublicAppProps) => {
                 >
                   ×
                 </button>
-              </span>
+              </TagChip>
             ))
           )}
         </div>
