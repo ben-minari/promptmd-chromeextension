@@ -12,6 +12,7 @@ import Fuse, { FuseResult } from "fuse.js"
 import { cn } from "../utils/cn"
 import { SearchBar } from "../components/prompts/SearchBar"
 import { ViewSelector, type PromptView } from "../components/prompts/ViewSelector"
+import { TagChip } from '../components/ui/TagChip';
 
 const AVAILABLE_TAGS = {
   specialty: [
@@ -153,9 +154,40 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
   const handleSave = async (tool: Tool) => {
     if (!currentUser || !tool.id) return
     try {
-      await toolsService.saveTool(currentUser.uid, tool.id)
+      // Update the UI state immediately
+      setTools(prevTools => prevTools.map(t => 
+        t.id === tool.id 
+          ? { 
+              ...t, 
+              isSaved: !t.isSaved,
+              saveCount: t.isSaved ? Math.max(0, t.saveCount - 1) : (t.saveCount || 0) + 1
+            }
+          : t
+      ))
+
+      // Then perform the database operation
+      if (tool.isSaved) {
+        await toolsService.unsaveTool(currentUser.uid, tool.id)
+      } else {
+        await toolsService.saveTool(currentUser.uid, tool.id)
+      }
+
+      // If we're in the saved view, reload the tools to ensure consistency
+      if (activeView === 'saved') {
+        await loadTools()
+      }
     } catch (error) {
       console.error("Error saving tool:", error)
+      // Revert the UI state if the operation failed
+      setTools(prevTools => prevTools.map(t => 
+        t.id === tool.id 
+          ? { 
+              ...t, 
+              isSaved: t.isSaved,  // Keep original state
+              saveCount: t.saveCount  // Keep original count
+            }
+          : t
+      ))
     }
   }
 
@@ -262,8 +294,7 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
           <div className="flex flex-wrap gap-2 mb-2">
             {Object.entries(selectedTags).flatMap(([category, tags]) =>
               tags.map(tag => (
-                <span key={category + tag} className="flex items-center gap-1 px-2 py-1 text-xs bg-teal-100 text-teal-700 rounded-full">
-                  <span>{tag}</span>
+                <TagChip key={category + tag} tag={tag} category={category}>
                   <button
                     className="hover:text-teal-900"
                     onClick={() => handleTagRemove(category as TagCategory, tag)}
@@ -271,7 +302,7 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
                   >
                     ×
                   </button>
-                </span>
+                </TagChip>
               ))
             )}
           </div>

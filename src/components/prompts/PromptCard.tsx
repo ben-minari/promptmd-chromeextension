@@ -7,6 +7,7 @@ import { useAuth } from "../../contexts/AuthContext"
 import { toolsService } from "../../services/tools-service"
 import { cn } from "../../utils/cn"
 import { getTagColor } from '../../utils/tag-utils'
+import { TagChip } from "../ui/TagChip"
 
 interface PromptCardProps {
   prompt: Tool
@@ -50,25 +51,33 @@ export function PromptCard({
 }: PromptCardProps) {
   const { currentUser } = useAuth()
   const [isSaving, setIsSaving] = React.useState(false)
+  const [isSaved, setIsSaved] = React.useState(prompt.isSaved)
 
   const handleSave = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (!currentUser) return
-    setIsSaving(true)
+    if (!currentUser || !prompt.id || isSaving) return;
+    console.log('handleSave called in PromptCard, current isSaved:', isSaved);
+    setIsSaving(true);
     try {
-      if (prompt.isSaved) {
-        await toolsService.unsaveTool(currentUser.uid, prompt.id!)
-        onSave?.()
+      if (isSaved) {
+        await toolsService.unsaveTool(currentUser.uid, prompt.id);
+        console.log('Tool unsaved successfully in PromptCard');
+        setIsSaved(false);
       } else {
-        await toolsService.saveTool(currentUser.uid, prompt.id!)
-        onSave?.()
+        await toolsService.saveTool(currentUser.uid, prompt.id);
+        console.log('Tool saved successfully in PromptCard');
+        setIsSaved(true);
       }
+      // Call onSave to update parent components
+      onSave?.();
     } catch (error) {
-      console.error("Error saving tool:", error)
+      console.error("Error in handleSave:", error);
+      // Revert the state if there was an error
+      setIsSaved(!isSaved);
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
   // Find matches for title, description, and tags
   let titleMatch: [number, number][] = [];
@@ -83,7 +92,7 @@ export function PromptCard({
         if (!tagMatches[tagKey]) tagMatches[tagKey] = {};
         // For array fields, m.value is the tag string, m.indices is an array of [start, end] pairs
         if (typeof m.value === "string" && Array.isArray(m.indices) && m.indices.length > 0 && Array.isArray(m.indices[0])) {
-          tagMatches[tagKey][m.value] = m.indices.filter(x => Array.isArray(x) && x.length === 2);
+          tagMatches[tagKey][m.value] = m.indices.filter((x: any) => Array.isArray(x) && x.length === 2);
         }
       }
     }
@@ -105,14 +114,7 @@ export function PromptCard({
         <div className="flex flex-wrap gap-1">
           {Object.entries(prompt.tags).map(([category, tags]) =>
             tags.map((tag) => (
-              <span
-                key={tag}
-                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getTagColor(category)}`}
-              >
-                {match && tagMatches[category] && tagMatches[category][tag]
-                  ? highlightText(tag, tagMatches[category][tag])
-                  : tag}
-              </span>
+              <TagChip key={tag} tag={tag} category={category} />
             ))
           )}
         </div>
@@ -132,10 +134,19 @@ export function PromptCard({
             variant="ghost"
             size="sm"
             onClick={handleSave}
-            className="text-slate-600 hover:text-slate-800 h-6 px-2"
+            disabled={isSaving}
+            className={cn(
+              "h-6 px-2 group relative",
+              isSaved ? "text-blue-600 hover:text-blue-700" : "text-slate-600 hover:text-slate-800"
+            )}
           >
             <Bookmark className="h-3 w-3" />
-            <span className="ml-1 text-xs">{prompt.saveCount}</span>
+            <span className="ml-1 text-xs">
+              {isSaving ? "Saving..." : prompt.saveCount}
+            </span>
+            <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+              {isSaving ? "Saving..." : isSaved ? "Saved" : "Click to Save"}
+            </span>
           </Button>
         </div>
         <div className="flex items-center gap-1">
