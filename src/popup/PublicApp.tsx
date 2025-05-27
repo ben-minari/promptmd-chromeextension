@@ -8,7 +8,7 @@ import { Header } from '../components/layout/Header';
 import { SearchableDropdown } from '../components/prompts/SearchableDropdown';
 import { CreatePromptModal } from '../components/prompts/CreatePromptModal';
 import { FloatingActionButton } from '../components/ui/FloatingActionButton';
-import Fuse from "fuse.js"
+import Fuse, { FuseResult } from "fuse.js"
 
 type TagCategory = 'specialty' | 'useCase' | 'userType' | 'appModel';
 
@@ -76,7 +76,12 @@ const AVAILABLE_TAGS = {
   ]
 } as const;
 
-const PublicApp = () => {
+interface PublicAppProps {
+  isFiltersOpen: boolean;
+  setIsFiltersOpen: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+const PublicApp = ({ isFiltersOpen, setIsFiltersOpen }: PublicAppProps) => {
   const { currentUser, signInWithGoogle } = useAuth();
   const [tools, setTools] = useState<Tool[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -92,7 +97,6 @@ const PublicApp = () => {
     userType: [],
     appModel: []
   });
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const [draftPrompt, setDraftPrompt] = useState<Omit<Tool, "id" | "createdAt" | "updatedAt" | "saveCount" | "ratingAvg" | "ratingCount"> | null>(null);
@@ -194,7 +198,7 @@ const PublicApp = () => {
   });
 
   let fuseResults: typeof tools = tools;
-  let matchMap: Record<string, Fuse.FuseResult<Tool>["matches"]> = {};
+  let matchMap: Record<string, FuseResult<Tool>["matches"]> = {};
   if (searchQuery.trim()) {
     const results = fuse.search(searchQuery.trim());
     fuseResults = results.map(r => r.item);
@@ -222,19 +226,22 @@ const PublicApp = () => {
   return (
     <div className="h-full flex flex-col">
       <Header 
-        onSearch={setSearchQuery}
-        onOpenFilters={() => setIsFiltersOpen((open) => !open)}
+        onSearch={q => { console.log('search:', q); setSearchQuery(q); }}
+        onOpenFilters={() => { console.log('open filters'); setIsFiltersOpen(true); }}
       />
       {/* Filters Sidebar */}
-      {isFiltersOpen && (
+      {isFiltersOpen && (console.log('Sidebar open!'), (
         <div className="fixed inset-0 z-40 flex">
           {/* Overlay */}
-          <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => setIsFiltersOpen(false)} />
+          <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => { console.log('Overlay clicked, closing sidebar'); setIsFiltersOpen(false); }} />
           {/* Sidebar */}
-          <div className="relative ml-auto w-50 max-w-full h-full bg-white shadow-xl p-6 border-l border-slate-200">
+          <div
+            className="relative ml-auto max-w-full h-full bg-white shadow-xl p-6 border-l-4 border-blue-500"
+            style={{ width: 320, backgroundColor: '#f8fafc' }}
+          >
             <button
               className="absolute top-4 right-4 text-slate-500 hover:text-slate-700"
-              onClick={() => setIsFiltersOpen(false)}
+              onClick={() => { console.log('Close button clicked'); setIsFiltersOpen(false); }}
             >
               Close
             </button>
@@ -286,7 +293,7 @@ const PublicApp = () => {
             </div>
           </div>
         </div>
-      )}
+      ))}
       <div className="p-4 space-y-4">
         <div className="text-center mb-6">
           <h1 className="text-xl font-semibold text-slate-800 mb-2">Welcome to PromptMD</h1>
@@ -326,12 +333,6 @@ const PublicApp = () => {
         ) : (
           <PromptCatalog
             prompts={filteredTools}
-            availableTags={{
-              specialty: [...AVAILABLE_TAGS.specialty],
-              useCase: [...AVAILABLE_TAGS.useCase],
-              userType: [...AVAILABLE_TAGS.userType],
-              appModel: [...AVAILABLE_TAGS.appModel]
-            }}
             onSave={handleSave}
             onRate={handleRate}
             onShare={handleShare}
@@ -365,7 +366,7 @@ const PublicApp = () => {
           setIsSignInModalOpen(true);
           signInWithGoogle();
         }}
-        initialDraft={draftPrompt}
+        initialDraft={draftPrompt ?? undefined}
       />
 
       {/* Floating Action Button */}

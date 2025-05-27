@@ -8,7 +8,7 @@ import { Header } from "../components/layout/Header"
 import { SearchableDropdown } from "../components/prompts/SearchableDropdown"
 import { CreatePromptModal } from "../components/prompts/CreatePromptModal"
 import { FloatingActionButton } from "../components/ui/FloatingActionButton"
-import Fuse from "fuse.js"
+import Fuse, { FuseResult } from "fuse.js"
 import { cn } from "../utils/cn"
 import { SearchBar } from "../components/prompts/SearchBar"
 import { ViewSelector, type PromptView } from "../components/prompts/ViewSelector"
@@ -58,11 +58,11 @@ const AVAILABLE_TAGS = {
     'Assessment'
   ],
   userType: [
-    'physician',
-    'nurse',
-    'resident',
-    'student',
-    'admin'
+    'Physician',
+    'Nurse',
+    'Resident',
+    'Student',
+    'Admin'
   ],
   appModel: [
     'ChatGPT',
@@ -79,7 +79,12 @@ const AVAILABLE_TAGS = {
 
 type TagCategory = 'specialty' | 'useCase' | 'userType' | 'appModel';
 
-export default function AuthenticatedApp() {
+interface AuthenticatedAppProps {
+  isFiltersOpen: boolean;
+  setIsFiltersOpen: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: AuthenticatedAppProps) {
   const { currentUser, logout, switchAccount } = useAuth()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [tools, setTools] = useState<Tool[]>([])
@@ -91,7 +96,6 @@ export default function AuthenticatedApp() {
     userType: [],
     appModel: []
   })
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [activeView, setActiveView] = useState<PromptView>('all')
 
@@ -202,7 +206,7 @@ export default function AuthenticatedApp() {
   });
 
   let fuseResults: typeof tools = tools;
-  let matchMap: Record<string, Fuse.FuseResult<Tool>["matches"]> = {};
+  let matchMap: Record<string, FuseResult<Tool>["matches"]> = {};
   if (searchQuery.trim()) {
     const results = fuse.search(searchQuery.trim());
     fuseResults = results.map(r => r.item);
@@ -237,9 +241,8 @@ export default function AuthenticatedApp() {
   return (
     <div className="flex flex-col h-full">
       <Header
-        onLogout={logout}
-        onSwitchAccount={switchAccount}
-        user={currentUser}
+        onSearch={q => { console.log('search:', q); setSearchQuery(q); }}
+        onOpenFilters={() => { console.log('open filters'); setIsFiltersOpen(true); }}
       />
       
       <div className="flex-1 overflow-y-auto">
@@ -314,6 +317,73 @@ export default function AuthenticatedApp() {
 
       {/* Floating Action Button */}
       <FloatingActionButton onClick={handleCreatePrompt} />
+
+      {isFiltersOpen && (console.log('Sidebar open!'), (
+        <div className="fixed inset-0 z-40 flex">
+          {/* Overlay */}
+          <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => { console.log('Overlay clicked, closing sidebar'); setIsFiltersOpen(false); }} />
+          {/* Sidebar content */}
+          <div
+            className="relative ml-auto max-w-full h-full bg-white shadow-xl p-6 border-l-4 border-blue-500"
+            style={{ width: 320, backgroundColor: '#f8fafc' }}
+          >
+            <button
+              className="absolute top-4 right-4 text-slate-500 hover:text-slate-700"
+              onClick={() => { console.log('Close button clicked'); setIsFiltersOpen(false); }}
+            >
+              Close
+            </button>
+            <div className="mt-8 space-y-4">
+              <div className="flex justify-end mb-2">
+                <button
+                  onClick={() => setSelectedTags({ specialty: [], useCase: [], userType: [], appModel: [] })}
+                  className="px-3 py-1 text-xs text-slate-500 hover:text-teal-700 border border-slate-200 rounded"
+                >
+                  Clear All Filters
+                </button>
+              </div>
+              <SearchableDropdown
+                label="Specialty"
+                options={[...AVAILABLE_TAGS.specialty]}
+                selectedOptions={selectedTags.specialty}
+                onSelect={(tag) => handleTagSelect('specialty', tag)}
+                onRemove={(tag) => handleTagRemove('specialty', tag)}
+                onClearAll={() => setSelectedTags(prev => ({ ...prev, specialty: [] }))}
+                placeholder="Search specialties..."
+              />
+              <SearchableDropdown
+                label="Use Case"
+                options={[...AVAILABLE_TAGS.useCase]}
+                selectedOptions={selectedTags.useCase}
+                onSelect={(tag) => handleTagSelect('useCase', tag)}
+                onRemove={(tag) => handleTagRemove('useCase', tag)}
+                onClearAll={() => setSelectedTags(prev => ({ ...prev, useCase: [] }))}
+                placeholder="Search use cases..."
+              />
+              <SearchableDropdown
+                label="User Type"
+                options={[...AVAILABLE_TAGS.userType]}
+                selectedOptions={selectedTags.userType}
+                onSelect={(tag) => handleTagSelect('userType', tag)}
+                onRemove={(tag) => handleTagRemove('userType', tag)}
+                onClearAll={() => setSelectedTags(prev => ({ ...prev, userType: [] }))}
+                placeholder="Search user types..."
+              />
+              <SearchableDropdown
+                label="AI Model"
+                options={[...AVAILABLE_TAGS.appModel]}
+                selectedOptions={selectedTags.appModel}
+                onSelect={(tag) => handleTagSelect('appModel', tag)}
+                onRemove={(tag) => handleTagRemove('appModel', tag)}
+                onClearAll={() => setSelectedTags(prev => ({ ...prev, appModel: [] }))}
+                placeholder="Search AI models..."
+              />
+            </div>
+          </div>
+        </div>
+      ))}
+
+      console.log('filteredTools:', filteredTools);
     </div>
   )
 } 

@@ -1,13 +1,17 @@
 import "../style.css"
-import React from 'react';
+import React, { useState } from 'react';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import AuthenticatedApp from './AuthenticatedApp';
 import PublicApp from './PublicApp';
 
 const PopupContent = () => {
   const { currentUser } = useAuth();
-
-  return currentUser ? <AuthenticatedApp /> : <PublicApp />;
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  return currentUser ? (
+    <AuthenticatedApp isFiltersOpen={isFiltersOpen} setIsFiltersOpen={setIsFiltersOpen} />
+  ) : (
+    <PublicApp isFiltersOpen={isFiltersOpen} setIsFiltersOpen={setIsFiltersOpen} />
+  );
 };
 
 const IndexPopup = () => {

@@ -3,27 +3,7 @@ import { auth } from '../utils/firebase'
 
 export const signInWithChromeIdentity = async () => {
   try {
-    // First, try to get any existing token to clear it
-    const existingToken = await new Promise<string | null>((resolve) => {
-      chrome.identity.getAuthToken({ interactive: false }, (token) => {
-        resolve(token || null)
-      })
-    })
-
-    // If there's an existing token, remove it from cache
-    if (existingToken) {
-      await new Promise<void>((resolve, reject) => {
-        chrome.identity.removeCachedAuthToken({ token: existingToken }, () => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError)
-          } else {
-            resolve()
-          }
-        })
-      })
-    }
-
-    // Now get a new token with interactive mode
+    // Get a new token with interactive mode
     const token = await new Promise<string>((resolve, reject) => {
       chrome.identity.getAuthToken({ 
         interactive: true,
@@ -33,9 +13,28 @@ export const signInWithChromeIdentity = async () => {
         ]
       }, (token) => {
         if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError)
-        } else {
+          // If there's an error, try to clear the token and retry once
+          chrome.identity.removeCachedAuthToken({ token: '' }, () => {
+            chrome.identity.getAuthToken({ 
+              interactive: true,
+              scopes: [
+                'https://www.googleapis.com/auth/userinfo.email',
+                'https://www.googleapis.com/auth/userinfo.profile'
+              ]
+            }, (retryToken) => {
+              if (chrome.runtime.lastError) {
+                reject(chrome.runtime.lastError)
+              } else if (retryToken) {
+                resolve(retryToken)
+              } else {
+                reject(new Error('Failed to get auth token'))
+              }
+            })
+          })
+        } else if (token) {
           resolve(token)
+        } else {
+          reject(new Error('Failed to get auth token'))
         }
       })
     })

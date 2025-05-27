@@ -16,4 +16,9 @@ New features
 - launch app and inject prompt from extension (scope)
 - view output within extension
 - commenting
-- 
+
+## 5-23-25 #
+Thinking through steps to MVP, unprioritized.
+3. prompt card rating average and usage count is accurate if not already
+6. My Profile page: My Prompt Library
+7. Migrate webapp to firebase
