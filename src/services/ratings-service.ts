@@ -43,12 +43,36 @@ export const ratingsService = {
     const toolSnap = await getDoc(toolRef)
     if (toolSnap.exists()) {
       const tool = toolSnap.data()
-      const newCount = (tool.ratingCount || 0) + 1
-      const newAvg = ((tool.ratingAvg || 0) * (tool.ratingCount || 0) + rating.value) / newCount
+      console.log('Current tool data:', tool)
+      
+      // Initialize with safe defaults
+      const currentCount = Math.max(0, Number(tool.ratingCount || 0))
+      const currentAvg = Math.max(0, Number(tool.ratingAvg || 0))
+      const newCount = currentCount + 1
+      
+      // Calculate new average
+      let newAvg: number
+      if (currentCount === 0) {
+        // First rating
+        newAvg = rating.value
+      } else {
+        // Add to existing average
+        const currentTotal = currentAvg * currentCount
+        newAvg = (currentTotal + rating.value) / newCount
+      }
+      
+      console.log('Rating calculation:', {
+        currentCount,
+        currentAvg,
+        newCount,
+        newAvg,
+        ratingValue: rating.value
+      })
       
       await updateDoc(toolRef, {
         ratingCount: newCount,
-        ratingAvg: newAvg
+        ratingAvg: Number(newAvg.toFixed(2)),
+        updatedAt: Timestamp.now()
       })
     }
     
@@ -61,7 +85,10 @@ export const ratingsService = {
     if (!ratingSnap.exists()) return null
     
     const oldRating = ratingSnap.data() as Rating
-    await updateDoc(ratingRef, updates)
+    await updateDoc(ratingRef, {
+      ...updates,
+      updatedAt: Timestamp.now()
+    })
     
     // Update tool's rating stats if value changed
     if (updates.value !== undefined && updates.value !== oldRating.value) {
@@ -69,10 +96,34 @@ export const ratingsService = {
       const toolSnap = await getDoc(toolRef)
       if (toolSnap.exists()) {
         const tool = toolSnap.data()
-        const newAvg = ((tool.ratingAvg * tool.ratingCount) - oldRating.value + updates.value) / tool.ratingCount
+        console.log('Current tool data:', tool)
+        
+        // Initialize with safe defaults
+        const currentCount = Math.max(0, Number(tool.ratingCount || 0))
+        const currentAvg = Math.max(0, Number(tool.ratingAvg || 0))
+        
+        // Calculate new average
+        let newAvg: number
+        if (currentCount === 0) {
+          // No ratings (shouldn't happen, but just in case)
+          newAvg = updates.value
+        } else {
+          // Update existing average
+          const currentTotal = currentAvg * currentCount
+          newAvg = (currentTotal - oldRating.value + updates.value) / currentCount
+        }
+        
+        console.log('Rating update calculation:', {
+          currentCount,
+          currentAvg,
+          oldRatingValue: oldRating.value,
+          newRatingValue: updates.value,
+          newAvg
+        })
         
         await updateDoc(toolRef, {
-          ratingAvg: newAvg
+          ratingAvg: Number(newAvg.toFixed(2)),
+          updatedAt: Timestamp.now()
         })
       }
     }
@@ -93,12 +144,32 @@ export const ratingsService = {
     const toolSnap = await getDoc(toolRef)
     if (toolSnap.exists()) {
       const tool = toolSnap.data()
-      const newCount = tool.ratingCount - 1
-      const newAvg = newCount === 0 ? 0 : ((tool.ratingAvg * tool.ratingCount) - rating.value) / newCount
+      console.log('Current tool data:', tool)
+      
+      // Initialize with safe defaults
+      const currentCount = Math.max(0, Number(tool.ratingCount || 0))
+      const currentAvg = Math.max(0, Number(tool.ratingAvg || 0))
+      const newCount = Math.max(0, currentCount - 1)
+      
+      // Calculate new average
+      let newAvg = 0
+      if (newCount > 0) {
+        const currentTotal = currentAvg * currentCount
+        newAvg = (currentTotal - rating.value) / newCount
+      }
+      
+      console.log('Rating deletion calculation:', {
+        currentCount,
+        currentAvg,
+        newCount,
+        deletedRatingValue: rating.value,
+        newAvg
+      })
       
       await updateDoc(toolRef, {
         ratingCount: newCount,
-        ratingAvg: newAvg
+        ratingAvg: Number(newAvg.toFixed(2)),
+        updatedAt: Timestamp.now()
       })
     }
   }

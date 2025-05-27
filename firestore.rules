@@ -23,10 +23,10 @@ service cloud.firestore {
       allow update: if isOwner(resource.data.authorId) 
         && resource.data.status == "published";
       
-      // Allow authenticated users to update saveCount
+      // Allow authenticated users to update saveCount and rating fields
       allow update: if isAuthenticated() 
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['saveCount', 'updatedAt']);
+          .hasOnly(['saveCount', 'ratingAvg', 'ratingCount', 'updatedAt']);
     }
 
     // User's saved tools subcollection
