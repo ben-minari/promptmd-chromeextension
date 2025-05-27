@@ -214,7 +214,7 @@ export function PromptDetails({
             >
               <Bookmark className="h-4 w-4 mr-1" />
               <span className="text-sm">
-                {isSaving ? "Saving..." : prompt.isSaved ? "Saved" : currentUser ? "Save" : "Sign in to Save"}
+                {isSaving ? (prompt.isSaved ? "Unsaving..." : "Saving...") : prompt.isSaved ? "Saved" : currentUser ? "Save" : "Sign in to Save"}
               </span>
             </Button>
             {onEdit && (

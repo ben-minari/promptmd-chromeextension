@@ -104,22 +104,24 @@ const PublicApp = ({ isFiltersOpen, setIsFiltersOpen }: PublicAppProps) => {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    loadTools();
-  }, []);
-
-  const loadTools = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const publishedTools = await toolsService.getPublishedTools();
-      setTools(publishedTools || []);
-    } catch (error) {
-      console.error('Error loading tools:', error);
-      setError('Failed to load tools. Please try again.');
-    } finally {
+    setIsLoading(true);
+    let savedToolIds: Set<string> = new Set();
+    const unsubTools = toolsService.listenToPublishedTools((tools) => {
+      setTools(tools.map(tool => ({ ...tool, isSaved: savedToolIds.has(tool.id!) })));
       setIsLoading(false);
+    });
+    let unsubSaved: (() => void) | null = null;
+    if (currentUser) {
+      unsubSaved = toolsService.listenToUserSavedTools(currentUser.uid, (ids) => {
+        savedToolIds = ids;
+        setTools(prevTools => prevTools.map(tool => ({ ...tool, isSaved: savedToolIds.has(tool.id!) })));
+      });
     }
-  };
+    return () => {
+      unsubTools();
+      if (unsubSaved) unsubSaved();
+    };
+  }, [currentUser]);
 
   const handleTagSelect = (category: TagCategory, tag: string) => {
     setSelectedTags(prev => ({
@@ -172,7 +174,6 @@ const PublicApp = ({ isFiltersOpen, setIsFiltersOpen }: PublicAppProps) => {
         ...prompt,
         authorId: currentUser.uid
       });
-      loadTools();
     } catch (error) {
       console.error("Failed to create prompt:", error);
     }

@@ -1,5 +1,5 @@
 import { db } from "../utils/firebase"
-import { collection, query, where, orderBy, limit, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, Timestamp, writeBatch, setDoc, increment, serverTimestamp } from "firebase/firestore"
+import { collection, query, where, orderBy, limit, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, Timestamp, writeBatch, setDoc, increment, serverTimestamp, onSnapshot } from "firebase/firestore"
 import { categorizeTag } from '../utils/tag-utils'
 import { auth } from "../utils/firebase"
 
@@ -286,5 +286,25 @@ export const toolsService = {
     }
     
     return tools
-  }
+  },
+
+  listenToPublishedTools: (callback: (tools: Tool[]) => void) => {
+    const q = query(
+      collection(db, 'tools'),
+      where('status', '==', 'published'),
+      where('type', '==', 'prompt')
+    );
+    return onSnapshot(q, (snapshot) => {
+      const tools = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tool));
+      callback(tools);
+    });
+  },
+
+  listenToUserSavedTools: (userId: string, callback: (savedToolIds: Set<string>) => void) => {
+    const savedToolsRef = collection(db, `users/${userId}/savedTools`);
+    return onSnapshot(savedToolsRef, (snapshot) => {
+      const savedToolIds = new Set(snapshot.docs.map(doc => doc.id));
+      callback(savedToolIds);
+    });
+  },
 } 

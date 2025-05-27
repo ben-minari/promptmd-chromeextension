@@ -54,13 +54,9 @@ export function PromptCard({
 
   const handleSave = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (!currentUser || !prompt.id || isSaving) return;
-    setIsSaving(true);
-    try {
-      await onSave?.();
-    } finally {
-      setIsSaving(false);
-    }
+    if (!currentUser || !prompt.id) return;
+    console.log('[PromptCard] handleSave called for', prompt.id, 'isSaved:', prompt.isSaved);
+    await onSave?.();
   };
 
   // Find matches for title, description, and tags

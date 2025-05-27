@@ -89,6 +89,7 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
   const { currentUser, logout, switchAccount } = useAuth()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [tools, setTools] = useState<Tool[]>([])
+  const [savedToolIds, setSavedToolIds] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedTags, setSelectedTags] = useState<Record<TagCategory, string[]>>({
@@ -101,39 +102,38 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
   const [activeView, setActiveView] = useState<PromptView>('all')
 
   useEffect(() => {
-    loadTools()
-  }, [activeView])
+    if (!currentUser) return;
+    setIsLoading(true);
+    let savedToolIds: Set<string> = new Set();
+    
+    // Listen to published tools
+    const unsubTools = toolsService.listenToPublishedTools((tools) => {
+      // Update tools with current saved state
+      setTools(tools.map(tool => ({ 
+        ...tool, 
+        isSaved: savedToolIds.has(tool.id!) 
+      })));
+      setIsLoading(false);
+    });
 
-  const loadTools = async () => {
-    if (!currentUser) return
-
-    setIsLoading(true)
-    setError(null)
-    try {
-      let loadedTools: Tool[] = []
-      
-      switch (activeView) {
-        case 'saved':
-          loadedTools = await toolsService.getSavedTools(currentUser.uid)
-          break
-        case 'created':
-          loadedTools = await toolsService.getToolsByAuthor(currentUser.uid)
-          break
-        case 'drafts':
-          loadedTools = await toolsService.getDraftTools(currentUser.uid)
-          break
-        default:
-          loadedTools = await toolsService.getPublishedTools()
-      }
-      
-      setTools(loadedTools || [])
-    } catch (error) {
-      console.error("Error loading tools:", error)
-      setError("Failed to load tools. Please try again.")
-    } finally {
-      setIsLoading(false)
+    // Listen to user's saved tools
+    let unsubSaved: (() => void) | null = null;
+    if (currentUser) {
+      unsubSaved = toolsService.listenToUserSavedTools(currentUser.uid, (ids) => {
+        savedToolIds = ids;
+        // Update all tools with new saved state
+        setTools(prevTools => prevTools.map(tool => ({ 
+          ...tool, 
+          isSaved: savedToolIds.has(tool.id!) 
+        })));
+      });
     }
-  }
+
+    return () => {
+      unsubTools();
+      if (unsubSaved) unsubSaved();
+    };
+  }, [currentUser]);
 
   const handleTagSelect = (category: TagCategory, tag: string) => {
     setSelectedTags(prev => ({
@@ -152,42 +152,16 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
   };
 
   const handleSave = async (tool: Tool) => {
-    if (!currentUser || !tool.id) return
+    if (!currentUser || !tool.id) return;
     try {
-      // Update the UI state immediately
-      setTools(prevTools => prevTools.map(t => 
-        t.id === tool.id 
-          ? { 
-              ...t, 
-              isSaved: !t.isSaved,
-              saveCount: t.isSaved ? Math.max(0, t.saveCount - 1) : (t.saveCount || 0) + 1
-            }
-          : t
-      ))
-
-      // Then perform the database operation
+      // Perform Firestore operation
       if (tool.isSaved) {
-        await toolsService.unsaveTool(currentUser.uid, tool.id)
+        await toolsService.unsaveTool(currentUser.uid, tool.id);
       } else {
-        await toolsService.saveTool(currentUser.uid, tool.id)
-      }
-
-      // If we're in the saved view, reload the tools to ensure consistency
-      if (activeView === 'saved') {
-        await loadTools()
+        await toolsService.saveTool(currentUser.uid, tool.id);
       }
     } catch (error) {
-      console.error("Error saving tool:", error)
-      // Revert the UI state if the operation failed
-      setTools(prevTools => prevTools.map(t => 
-        t.id === tool.id 
-          ? { 
-              ...t, 
-              isSaved: t.isSaved,  // Keep original state
-              saveCount: t.saveCount  // Keep original count
-            }
-          : t
-      ))
+      console.error("Error saving tool:", error);
     }
   }
 
@@ -215,13 +189,12 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
       const newPrompt = await toolsService.createTool({
         ...prompt,
         authorId: currentUser!.uid
-      })
-      // Refresh the prompts list
-      loadTools()
+      });
+      // No need to reload tools; real-time listener will update state
     } catch (error) {
-      console.error("Failed to create prompt:", error)
+      console.error("Failed to create prompt:", error);
     }
-  }
+  };
 
   // Fuzzy search setup
   const fuse = new Fuse(tools, {
@@ -251,6 +224,10 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
       if (tags.length === 0) return true;
       return tags.every(tag => tool.tags[category as keyof typeof tool.tags]?.includes(tag));
     });
+    // If in saved view, only show saved tools
+    if (activeView === 'saved') {
+      return tool.isSaved && matchesTags;
+    }
     return matchesTags;
   });
 
