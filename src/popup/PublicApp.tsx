@@ -11,6 +11,7 @@ import { FloatingActionButton } from '../components/ui/FloatingActionButton';
 import { PromptDetails } from '../components/prompts/PromptDetails';
 import Fuse, { FuseResult } from "fuse.js"
 import { TagChip } from '../components/ui/TagChip';
+import { Share2 } from 'lucide-react';
 
 type TagCategory = 'specialty' | 'useCase' | 'userType' | 'appModel';
 
@@ -104,6 +105,7 @@ const PublicApp = ({ isFiltersOpen, setIsFiltersOpen }: PublicAppProps) => {
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const [draftPrompt, setDraftPrompt] = useState<Omit<Tool, "id" | "createdAt" | "updatedAt" | "saveCount" | "ratingAvg" | "ratingCount"> | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [copiedUrl, setCopiedUrl] = useState(false);
 
   useEffect(() => {
     setIsLoading(true);
@@ -156,8 +158,15 @@ const PublicApp = ({ isFiltersOpen, setIsFiltersOpen }: PublicAppProps) => {
   };
 
   const handleShare = (tool: Tool) => {
-    // TODO: Implement sharing functionality
-    console.log('Sharing tool:', tool);
+    const shareableUrl = `https://promptmd.vercel.app/prompts/${tool.id}`;
+    navigator.clipboard.writeText(shareableUrl)
+      .then(() => {
+        setCopiedUrl(true);
+        setTimeout(() => setCopiedUrl(false), 1500);
+      })
+      .catch((error) => {
+        console.error('Failed to copy URL:', error);
+      });
   };
 
   const handleCreatePrompt = () => {
@@ -286,13 +295,13 @@ const PublicApp = ({ isFiltersOpen, setIsFiltersOpen }: PublicAppProps) => {
                 placeholder="Search user types..."
               />
               <SearchableDropdown
-                label="AI Model"
+                label="AI App / Model"
                 options={[...AVAILABLE_TAGS.appModel]}
                 selectedOptions={selectedTags.appModel}
                 onSelect={(tag) => handleTagSelect('appModel', tag)}
                 onRemove={(tag) => handleTagRemove('appModel', tag)}
                 onClearAll={() => setSelectedTags(prev => ({ ...prev, appModel: [] }))}
-                placeholder="Search AI models..."
+                placeholder="Search AI apps or models..."
               />
             </div>
           </div>

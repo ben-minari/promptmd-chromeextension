@@ -54,6 +54,7 @@ export function PromptCard({
   const [isSaving, setIsSaving] = React.useState(false)
   const [hoveredRating, setHoveredRating] = React.useState<number | null>(null)
   const [creator, setCreator] = React.useState<User | null>(null)
+  const [copiedUrl, setCopiedUrl] = useState(false);
 
   const isOwner = currentUser?.uid === prompt.authorId
   const showRating = prompt.status === "published"
@@ -89,6 +90,19 @@ export function PromptCard({
   const handleRatingLeave = (e: React.MouseEvent) => {
     e.stopPropagation();
     setHoveredRating(null);
+  };
+
+  const handleShare = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const shareableUrl = `https://promptmd.vercel.app/prompts/${prompt.id}`;
+    navigator.clipboard.writeText(shareableUrl)
+      .then(() => {
+        setCopiedUrl(true);
+        setTimeout(() => setCopiedUrl(false), 1500);
+      })
+      .catch((error) => {
+        console.error('Failed to copy URL:', error);
+      });
   };
 
   // Find matches for title, description, and tags
@@ -178,10 +192,13 @@ export function PromptCard({
           <Button
             variant="ghost"
             size="sm"
-            onClick={e => { e.stopPropagation(); onShare?.(); }}
-            className="text-slate-600 hover:text-slate-800 h-6 px-2"
+            onClick={handleShare}
+            className="text-slate-600 hover:text-slate-800 h-6 px-2 group relative"
           >
             <Share2 className="h-3 w-3" />
+            <span className="absolute -top-8 left-0 -translate-x-3/4 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+              {copiedUrl ? "URL Copied!" : "Click to Copy URL"}
+            </span>
           </Button>
         </div>
       </CardFooter>

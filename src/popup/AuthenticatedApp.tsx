@@ -18,6 +18,7 @@ import { collection, query, where, onSnapshot, doc, getDoc } from "firebase/fire
 import { db } from "../utils/firebase"
 import { PromptDetails } from "../components/prompts/PromptDetails"
 import { Timestamp } from "firebase/firestore"
+import { Share2 } from "lucide-react"
 
 const AVAILABLE_TAGS = {
   specialty: [
@@ -109,6 +110,7 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
   const [selectedPrompt, setSelectedPrompt] = useState<Tool | null>(null)
   const [matchMap, setMatchMap] = useState<Record<string, FuseResult<Tool>["matches"]>>({})
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null)
+  const [copiedUrl, setCopiedUrl] = useState(false)
 
   // Memoize the filtered tools to prevent unnecessary recalculations
   const filteredTools = React.useMemo(() => {
@@ -296,10 +298,11 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
   }
 
   const handleShare = (tool: Tool) => {
-    const shareableUrl = `${window.location.origin}/prompt/${tool.id}`;
+    const shareableUrl = `https://promptmd.vercel.app/prompts/${tool.id}`;
     navigator.clipboard.writeText(shareableUrl)
       .then(() => {
-        console.log('URL copied to clipboard:', shareableUrl);
+        setCopiedUrl(true);
+        setTimeout(() => setCopiedUrl(false), 1500);
       })
       .catch((error) => {
         console.error('Failed to copy URL:', error);
@@ -569,13 +572,13 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
                 placeholder="Search user types..."
               />
               <SearchableDropdown
-                label="AI Model"
+                label="AI App / Model"
                 options={[...AVAILABLE_TAGS.appModel]}
                 selectedOptions={selectedTags.appModel}
                 onSelect={(tag) => handleTagSelect('appModel', tag)}
                 onRemove={(tag) => handleTagRemove('appModel', tag)}
                 onClearAll={() => setSelectedTags(prev => ({ ...prev, appModel: [] }))}
-                placeholder="Search AI models..."
+                placeholder="Search AI apps or models..."
               />
             </div>
           </div>

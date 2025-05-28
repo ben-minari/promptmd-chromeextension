@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react"
 import { Button } from "../ui/Button"
-import { ArrowLeft, Star, Bookmark, Share2, Copy, Users, Edit, Link as LinkIcon, User as UserIcon, FileText, Trash2 } from "lucide-react"
+import { ArrowLeft, Star, Bookmark, Share2, Copy, Users, Edit, Link as LinkIcon, User as UserIcon, FileText, Trash2, Rocket, ChevronDown } from "lucide-react"
 import type { Tool } from "../../services/tools-service"
 import { cn } from "../../utils/cn"
 import "../../styles/animations.css"
@@ -22,6 +22,12 @@ interface PromptDetailsProps {
   className?: string
 }
 
+type LaunchTarget = 'chatgpt' | 'claude';
+
+interface LaunchConfig {
+  target: LaunchTarget;
+}
+
 export function PromptDetails({
   prompt,
   onClose,
@@ -41,6 +47,11 @@ export function PromptDetails({
   const [creator, setCreator] = useState<User | null>(null)
   const [isOpening, setIsOpening] = useState(true)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [copiedUrl, setCopiedUrl] = useState(false)
+  const [showLaunchOptions, setShowLaunchOptions] = useState(false);
+  const [launchConfig, setLaunchConfig] = useState<LaunchConfig>({
+    target: 'chatgpt'
+  });
 
   const isOwner = currentUser?.uid === prompt.authorId
   const showRating = !isOwner && prompt.status === "published"
@@ -112,6 +123,37 @@ export function PromptDetails({
     setShowDeleteConfirm(false)
   }, [])
 
+  const handleShare = useCallback(() => {
+    const shareableUrl = `https://promptmd.vercel.app/prompts/${prompt.id}`;
+    navigator.clipboard.writeText(shareableUrl)
+      .then(() => {
+        setCopiedUrl(true);
+        setTimeout(() => setCopiedUrl(false), 1500);
+      })
+      .catch((error) => {
+        console.error('Failed to copy URL:', error);
+      });
+  }, [prompt.id]);
+
+  const handleLaunch = useCallback(() => {
+    const encodedPrompt = encodeURIComponent(prompt.content);
+    let launchUrl: string;
+
+    switch (launchConfig.target) {
+      case 'chatgpt':
+        launchUrl = `https://chat.openai.com/?prompt=${encodedPrompt}`;
+        break;
+      case 'claude':
+        launchUrl = `https://claude.ai/new?q=${encodedPrompt}`;
+        break;
+      default:
+        return;
+    }
+
+    window.open(launchUrl, '_blank');
+    setShowLaunchOptions(false);
+  }, [prompt, launchConfig]);
+
   return (
     <div className="fixed inset-0 z-50">
       <div 
@@ -181,15 +223,44 @@ export function PromptDetails({
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-medium text-slate-700">Prompt Template</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleCopy}
-                      className="h-6 px-2"
-                    >
-                      <Copy className="h-3 w-3 mr-1" />
-                      <span className="text-xs">{copied ? "Copied!" : "Copy"}</span>
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {showRating && currentUser && (
+                        <div 
+                          className="flex items-center"
+                          onMouseLeave={handleRatingLeave}
+                        >
+                          {[1, 2, 3, 4, 5].map((rating) => (
+                            <button
+                              key={rating}
+                              onClick={(e) => handleRatingClick(e, rating)}
+                              onMouseEnter={(e) => handleRatingHover(e, rating)}
+                              className="text-amber-500 hover:text-amber-600 h-6 px-0.5"
+                            >
+                              <Star 
+                                className={cn(
+                                  "h-4 w-4",
+                                  (hoveredRating ? rating <= hoveredRating : rating <= prompt.ratingAvg) 
+                                    ? "fill-current" 
+                                    : "fill-none"
+                                )} 
+                              />
+                            </button>
+                          ))}
+                          <span className="ml-1 text-sm text-slate-600">
+                            {prompt.ratingAvg.toFixed(1)}
+                          </span>
+                        </div>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleCopy}
+                        className="h-6 px-2"
+                      >
+                        <Copy className="h-3 w-3 mr-1" />
+                        <span className="text-xs">{copied ? "Copied!" : "Copy"}</span>
+                      </Button>
+                    </div>
                   </div>
                   <pre
                     className="bg-slate-50 p-3 rounded-md text-sm font-mono max-h-64 overflow-y-auto"
@@ -269,43 +340,59 @@ export function PromptDetails({
 
             {/* Footer Actions */}
             <div className="p-4 border-t border-slate-200 flex items-center justify-between bg-white">
-              {showRating && currentUser && (
-                <div 
-                  className="flex items-center"
-                  onMouseLeave={handleRatingLeave}
-                >
-                  {[1, 2, 3, 4, 5].map((rating) => (
-                    <button
-                      key={rating}
-                      onClick={(e) => handleRatingClick(e, rating)}
-                      onMouseEnter={(e) => handleRatingHover(e, rating)}
-                      className="text-amber-500 hover:text-amber-600 h-6 px-0.5"
-                    >
-                      <Star 
-                        className={cn(
-                          "h-4 w-4",
-                          (hoveredRating ? rating <= hoveredRating : rating <= prompt.ratingAvg) 
-                            ? "fill-current" 
-                            : "fill-none"
-                        )} 
-                      />
-                    </button>
-                  ))}
-                  <span className="ml-1 text-sm text-slate-600">
-                    {prompt.ratingAvg.toFixed(1)}
-                  </span>
-                </div>
-              )}
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="ghost" 
-                  onClick={onShare}
-                  className="h-8 px-3"
-                >
-                  <Share2 className="h-4 w-4 mr-1" />
-                  <span className="text-sm">Share</span>
-                </Button>
-                {currentUser && !isOwner && (
+                <div className="relative">
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => setShowLaunchOptions(!showLaunchOptions)}
+                    className="h-8 px-3"
+                  >
+                    <Rocket className="h-4 w-4 mr-1" />
+                    <span className="text-sm">Launch</span>
+                    <ChevronDown className="h-4 w-4 ml-1" />
+                  </Button>
+
+                  {showLaunchOptions && (
+                    <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-lg shadow-lg border border-slate-200 p-4">
+                      <h3 className="text-sm font-medium text-slate-700 mb-3">Launch Options</h3>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-sm text-slate-600 block mb-1">Target Application</label>
+                          <select
+                            value={launchConfig.target}
+                            onChange={(e) => setLaunchConfig(prev => ({
+                              ...prev,
+                              target: e.target.value as LaunchTarget
+                            }))}
+                            className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
+                          >
+                            <option value="chatgpt">ChatGPT</option>
+                            <option value="claude">Claude</option>
+                          </select>
+                        </div>
+
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowLaunchOptions(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={handleLaunch}
+                          >
+                            Launch
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {!isOwner && (
                   <Button 
                     variant="ghost" 
                     onClick={handleSave}
@@ -321,8 +408,38 @@ export function PromptDetails({
                     </span>
                   </Button>
                 )}
-                {currentUser && isOwner && prompt.status === "draft" && (
-                  <>
+                <Button 
+                  variant="ghost" 
+                  onClick={handleShare}
+                  className="h-8 px-3 group relative"
+                >
+                  <Share2 className="h-4 w-4 mr-1" />
+                  <span className="text-sm">{copiedUrl ? "URL Copied!" : "Share"}</span>
+                </Button>
+              </div>
+              {isOwner && (
+                <div className="flex items-center gap-2">
+                  {prompt.status === "draft" && (
+                    <>
+                      <Button 
+                        variant="ghost" 
+                        onClick={onEdit}
+                        className="h-8 px-3"
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        <span className="text-sm">Edit</span>
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        onClick={onPublish}
+                        className="h-8 px-3 text-green-600 hover:text-green-700"
+                      >
+                        <FileText className="h-4 w-4 mr-1" />
+                        <span className="text-sm">Publish</span>
+                      </Button>
+                    </>
+                  )}
+                  {prompt.status === "published" && (
                     <Button 
                       variant="ghost" 
                       onClick={onEdit}
@@ -331,27 +448,7 @@ export function PromptDetails({
                       <Edit className="h-4 w-4 mr-1" />
                       <span className="text-sm">Edit</span>
                     </Button>
-                    <Button 
-                      variant="ghost" 
-                      onClick={onPublish}
-                      className="h-8 px-3 text-green-600 hover:text-green-700"
-                    >
-                      <FileText className="h-4 w-4 mr-1" />
-                      <span className="text-sm">Publish</span>
-                    </Button>
-                  </>
-                )}
-                {currentUser && isOwner && prompt.status === "published" && (
-                  <Button 
-                    variant="ghost" 
-                    onClick={onEdit}
-                    className="h-8 px-3"
-                  >
-                    <Edit className="h-4 w-4 mr-1" />
-                    <span className="text-sm">Edit</span>
-                  </Button>
-                )}
-                {currentUser && isOwner && (
+                  )}
                   <Button 
                     variant="ghost" 
                     onClick={handleDeleteClick}
@@ -360,8 +457,8 @@ export function PromptDetails({
                     <Trash2 className="h-4 w-4 mr-1" />
                     <span className="text-sm">Delete</span>
                   </Button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
