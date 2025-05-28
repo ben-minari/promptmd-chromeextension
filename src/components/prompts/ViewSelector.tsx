@@ -51,11 +51,20 @@ export function ViewSelector({
 
   // Calculate the max width needed for any tab (label + badge)
   const tabLabels = [VIEW_LABELS.all, VIEW_LABELS.saved, VIEW_LABELS.created, VIEW_LABELS.drafts]
-  const maxLabelLength = Math.max(...tabLabels.map(l => l.length))
-  const tabMinWidth = Math.max(90, maxLabelLength * 13 + 32) // 13px per char + badge room
+  // Use canvas to measure text width for more accuracy
+  const getTextWidth = (text: string, font = '500 14px Inter, sans-serif') => {
+    if (typeof window === 'undefined') return text.length * 10;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return text.length * 10;
+    ctx.font = font;
+    return ctx.measureText(text).width;
+  };
+  const maxLabelWidth = Math.max(...tabLabels.map(l => getTextWidth(l))) + 36; // 36px for badge/chevron
+  const tabMinWidth = Math.max(80, Math.ceil(maxLabelWidth));
 
   return (
-    <div className={cn("inline-flex relative", className)} style={{ minWidth: tabMinWidth }}>
+    <div className={cn("inline-flex flex-col items-start relative", className)} style={{ minWidth: tabMinWidth }}>
       <div
         className="relative w-full"
         tabIndex={0}
@@ -69,8 +78,7 @@ export function ViewSelector({
         {!expanded && (
           <button
             className={cn(
-              "w-full px-4 py-2 text-sm rounded-lg transition-colors flex items-center justify-center bg-teal-500 text-white shadow-sm border border-slate-200",
-              'font-semibold'
+              "w-max min-w-[80px] px-3 py-2 text-sm rounded-lg transition-colors flex items-center justify-center bg-teal-500 text-white shadow-sm border border-slate-200 font-semibold",
             )}
             onClick={() => setExpanded(true)}
             aria-label={`Current view: ${VIEW_LABELS[activeView]}. Click or hover to expand.`}
@@ -92,7 +100,7 @@ export function ViewSelector({
         )}
         {/* Expanded: Dropdown menu */}
         {expanded && (
-          <div className="absolute left-0 top-0 w-full z-50 bg-white border border-slate-200 rounded-lg shadow-lg flex flex-col transition-all" style={{ minWidth: tabMinWidth }}>
+          <div className="absolute left-0 top-full w-max min-w-[80px] z-50 bg-white border border-slate-200 rounded-lg shadow-lg flex flex-col transition-all" style={{ minWidth: tabMinWidth, maxWidth: tabMinWidth }}>
             {getOrderedViews().map((view, idx, arr) => (
               <button
                 key={view}
@@ -101,7 +109,7 @@ export function ViewSelector({
                   setExpanded(false)
                 }}
                 className={cn(
-                  "w-full px-4 py-2 text-sm flex items-center justify-center transition-colors",
+                  "w-full px-3 py-2 text-sm flex items-center justify-center transition-colors",
                   view === activeView
                     ? 'bg-teal-500 text-white font-semibold' // highlight active
                     : 'text-slate-700 hover:bg-slate-100',
@@ -129,6 +137,8 @@ export function ViewSelector({
           </div>
         )}
       </div>
+      {/* Persistent border under the control for visual stability */}
+      <div className="w-full border-b border-slate-200" style={{ minWidth: tabMinWidth }} />
     </div>
   )
 } 
