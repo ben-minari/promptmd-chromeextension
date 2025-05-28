@@ -1,6 +1,5 @@
-import React, { useState } from "react"
+import React, { useCallback } from "react"
 import { PromptCard } from "./PromptCard"
-import { PromptDetails } from "./PromptDetails"
 import { Button } from "../ui/Button"
 import type { Tool } from "../../services/tools-service"
 
@@ -17,6 +16,8 @@ interface PromptCatalogProps {
     description: string
     showCreate?: boolean
   }
+  selectedPrompt: Tool | null
+  onSelectPrompt: (prompt: Tool | null) => void
 }
 
 export function PromptCatalog({
@@ -27,9 +28,13 @@ export function PromptCatalog({
   onCreatePrompt,
   className,
   matchMap = {},
-  emptyState
+  emptyState,
+  selectedPrompt,
+  onSelectPrompt
 }: PromptCatalogProps) {
-  const [selectedPrompt, setSelectedPrompt] = useState<Tool | null>(null)
+  const handleViewDetails = useCallback((prompt: Tool) => {
+    onSelectPrompt(prompt);
+  }, [onSelectPrompt]);
 
   if (prompts.length === 0) {
     return (
@@ -63,25 +68,11 @@ export function PromptCatalog({
             onSave={() => onSave?.(prompt)}
             onRate={(rating) => onRate?.(prompt, rating)}
             onShare={() => onShare?.(prompt)}
-            onViewDetails={() => setSelectedPrompt(prompt)}
+            onViewDetails={() => handleViewDetails(prompt)}
             match={matchMap[prompt.id!]}
           />
         ))}
       </div>
-
-      {selectedPrompt && (
-        <PromptDetails
-          prompt={prompts.find(p => p.id === selectedPrompt.id) || selectedPrompt}
-          onClose={() => setSelectedPrompt(null)}
-          onSave={() => {
-            onSave?.(prompts.find(p => p.id === selectedPrompt.id) || selectedPrompt);
-          }}
-          onShare={() => {
-            onShare?.(selectedPrompt)
-            setSelectedPrompt(null)
-          }}
-        />
-      )}
     </div>
   )
 } 

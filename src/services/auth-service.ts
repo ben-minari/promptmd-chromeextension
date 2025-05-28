@@ -1,5 +1,6 @@
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth'
-import { auth } from '../utils/firebase'
+import { auth, db } from '../utils/firebase'
+import { doc, setDoc, getDoc } from 'firebase/firestore'
 
 export const signInWithChromeIdentity = async () => {
   try {
@@ -44,6 +45,29 @@ export const signInWithChromeIdentity = async () => {
 
     // Sign in to Firebase with the credential
     const result = await signInWithCredential(auth, credential)
+
+    // Create or update user document in Firestore
+    const userRef = doc(db, 'users', result.user.uid)
+    const userSnap = await getDoc(userRef)
+    
+    if (!userSnap.exists()) {
+      // Create new user document
+      await setDoc(userRef, {
+        displayName: result.user.displayName,
+        email: result.user.email,
+        photoURL: result.user.photoURL,
+        createdAt: new Date()
+      })
+    } else {
+      // Update existing user document
+      await setDoc(userRef, {
+        displayName: result.user.displayName,
+        email: result.user.email,
+        photoURL: result.user.photoURL,
+        updatedAt: new Date()
+      }, { merge: true })
+    }
+
     return result
   } catch (error) {
     console.error('Chrome identity sign in failed:', error)

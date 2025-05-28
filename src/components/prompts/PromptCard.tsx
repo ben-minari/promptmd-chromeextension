@@ -1,13 +1,14 @@
-import React from "react"
+import React, { useState, useEffect } from "react"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../ui/Card"
 import { Button } from "../ui/Button"
-import { Star, Bookmark, Share2 } from "lucide-react"
+import { Star, Bookmark, Share2, User as UserIcon } from "lucide-react"
 import type { Tool } from "../../services/tools-service"
 import { useAuth } from "../../contexts/AuthContext"
 import { toolsService } from "../../services/tools-service"
 import { cn } from "../../utils/cn"
 import { getTagColor } from '../../utils/tag-utils'
 import { TagChip } from "../ui/TagChip"
+import { usersService, type User } from "../../services/users-service"
 
 interface PromptCardProps {
   prompt: Tool
@@ -51,12 +52,43 @@ export function PromptCard({
 }: PromptCardProps) {
   const { currentUser } = useAuth()
   const [isSaving, setIsSaving] = React.useState(false)
+  const [hoveredRating, setHoveredRating] = React.useState<number | null>(null)
+  const [creator, setCreator] = React.useState<User | null>(null)
+
+  const isOwner = currentUser?.uid === prompt.authorId
+  const showRating = !isOwner && prompt.status === "published"
+
+  useEffect(() => {
+    const fetchCreator = async () => {
+      if (prompt.authorId) {
+        const user = await usersService.getUserById(prompt.authorId)
+        setCreator(user)
+      }
+    }
+    fetchCreator()
+  }, [prompt.authorId])
 
   const handleSave = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!currentUser || !prompt.id) return;
     console.log('[PromptCard] handleSave called for', prompt.id, 'isSaved:', prompt.isSaved);
     await onSave?.();
+  };
+
+  const handleRatingClick = (e: React.MouseEvent, rating: number) => {
+    e.stopPropagation();
+    if (!currentUser || !prompt.id) return;
+    onRate?.(rating);
+  };
+
+  const handleRatingHover = (e: React.MouseEvent, rating: number) => {
+    e.stopPropagation();
+    setHoveredRating(rating);
+  };
+
+  const handleRatingLeave = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setHoveredRating(null);
   };
 
   // Find matches for title, description, and tags
@@ -88,6 +120,10 @@ export function PromptCard({
     >
       <CardHeader>
         <CardTitle>{highlightText(prompt.title, titleMatch)}</CardTitle>
+        <div className="flex items-center gap-1 text-xs text-slate-500">
+          <UserIcon className="h-3 w-3" />
+          <span>{creator?.displayName || 'Unknown'}</span>
+        </div>
         <CardDescription>{highlightText(prompt.description, descMatch)}</CardDescription>
       </CardHeader>
       <CardContent className="flex-1">
@@ -101,33 +137,34 @@ export function PromptCard({
       </CardContent>
       <CardFooter className="flex items-center justify-between">
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={e => { e.stopPropagation(); onRate?.(5); }}
-            className="text-amber-500 hover:text-amber-600 h-6 px-2"
-          >
-            <Star className="h-3 w-3" />
-            <span className="ml-1 text-xs">{prompt.ratingAvg.toFixed(1)}</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSave}
-            disabled={isSaving || !currentUser}
-            className={cn(
-              "h-6 px-2 group relative",
-              prompt.isSaved ? "text-blue-600 hover:text-blue-700" : "text-slate-600 hover:text-slate-800"
-            )}
-          >
-            <Bookmark className="h-3 w-3" />
-            <span className="ml-1 text-xs">
-              {isSaving ? "Saving..." : prompt.saveCount}
-            </span>
-            <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-              {isSaving ? "Saving..." : prompt.isSaved ? "Saved" : currentUser ? "Click to Save" : "Sign in to Save"}
-            </span>
-          </Button>
+          {showRating && (
+            <div className="flex items-center">
+              <Star className="h-3 w-3 text-amber-500 fill-current" />
+              <span className="ml-1 text-xs text-slate-600">
+                {prompt.ratingCount === 0 ? "No rating" : prompt.ratingAvg.toFixed(1)}
+              </span>
+            </div>
+          )}
+          {!isOwner && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSave}
+              disabled={isSaving || !currentUser}
+              className={cn(
+                "h-6 px-2 group relative",
+                prompt.isSaved ? "text-blue-600 hover:text-blue-700" : "text-slate-600 hover:text-slate-800"
+              )}
+            >
+              <Bookmark className="h-3 w-3" />
+              <span className="ml-1 text-xs">
+                {isSaving ? "Saving..." : prompt.saveCount}
+              </span>
+              <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                {isSaving ? "Saving..." : prompt.isSaved ? "Saved" : currentUser ? "Click to Save" : "Sign in to Save"}
+              </span>
+            </Button>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <Button

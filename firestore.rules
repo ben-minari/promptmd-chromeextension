@@ -15,6 +15,10 @@ service cloud.firestore {
       // Anyone can read published tools
       allow read: if resource.data.status == "published";
       
+      // Allow authenticated users to create new tools
+      allow create: if isAuthenticated() 
+        && request.resource.data.authorId == request.auth.uid;
+      
       // Only the owner can read/write their drafts
       allow read, write: if isOwner(resource.data.authorId) 
         && resource.data.status == "draft";
@@ -27,6 +31,9 @@ service cloud.firestore {
       allow update: if isAuthenticated() 
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['saveCount', 'ratingAvg', 'ratingCount', 'updatedAt']);
+      
+      // Allow owners to delete their own tools (both drafts and published)
+      allow delete: if isOwner(resource.data.authorId);
     }
 
     // User's saved tools subcollection
@@ -49,7 +56,9 @@ service cloud.firestore {
 
     // Users collection
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      // Anyone can read user profiles
+      allow read: if true;
+      // Only the owner can write to their profile
       allow write: if isOwner(userId);
     }
   }

@@ -15,7 +15,7 @@ interface ViewSelectorProps {
 const VIEW_LABELS: Record<PromptView, string> = {
   all: 'All',
   saved: 'Saved',
-  created: 'Created',
+  created: 'Published',
   drafts: 'Drafts',
 }
 

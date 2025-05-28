@@ -126,9 +126,9 @@ export const toolsService = {
     })
   },
 
-  async deleteTool(id: string) {
-    const docRef = doc(db, "tools", id)
-    await deleteDoc(docRef)
+  async deleteTool(toolId: string): Promise<void> {
+    const toolRef = doc(db, "tools", toolId);
+    await deleteDoc(toolRef);
   },
 
   async saveTool(userId: string, toolId: string) {
@@ -288,15 +288,32 @@ export const toolsService = {
     return tools
   },
 
-  listenToPublishedTools: (callback: (tools: Tool[]) => void) => {
+  listenToPublishedTools: (callback: (tools: Tool[]) => void): () => void => {
     const q = query(
-      collection(db, 'tools'),
-      where('status', '==', 'published'),
-      where('type', '==', 'prompt')
+      collection(db, "tools"),
+      where("status", "==", "published"),
+      where("type", "==", "prompt"),
+      orderBy("updatedAt", "desc")
     );
-    return onSnapshot(q, (snapshot) => {
+    return onSnapshot(q, async (snapshot) => {
       const tools = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tool));
-      callback(tools);
+      
+      // Get the current user's saved tools
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        const savedToolsRef = await getDocs(
+          collection(db, "users", currentUser.uid, "savedTools")
+        );
+        const savedToolIds = new Set(savedToolsRef.docs.map(doc => doc.id));
+        
+        // Mark tools as saved if they're in the user's saved tools
+        callback(tools.map(tool => ({
+          ...tool,
+          isSaved: savedToolIds.has(tool.id!)
+        })));
+      } else {
+        callback(tools);
+      }
     });
   },
 
@@ -307,4 +324,48 @@ export const toolsService = {
       callback(savedToolIds);
     });
   },
+
+  listenToUserRatings: (userId: string, callback: (ratings: Record<string, number>) => void): () => void => {
+    const ratingsQuery = query(
+      collection(db, "ratings"),
+      where("userId", "==", userId)
+    );
+    return onSnapshot(ratingsQuery, (snapshot) => {
+      const ratings: Record<string, number> = {};
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        ratings[data.toolId] = data.value;
+      });
+      callback(ratings);
+    });
+  },
+
+  listenToUserDrafts: (userId: string, callback: (tools: Tool[]) => void): () => void => {
+    const q = query(
+      collection(db, "tools"),
+      where("authorId", "==", userId),
+      where("status", "==", "draft"),
+      orderBy("updatedAt", "desc")
+    );
+    return onSnapshot(q, async (snapshot) => {
+      const tools = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tool));
+      
+      // Get the current user's saved tools
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        const savedToolsRef = await getDocs(
+          collection(db, "users", currentUser.uid, "savedTools")
+        );
+        const savedToolIds = new Set(savedToolsRef.docs.map(doc => doc.id));
+        
+        // Mark tools as saved if they're in the user's saved tools
+        callback(tools.map(tool => ({
+          ...tool,
+          isSaved: savedToolIds.has(tool.id!)
+        })));
+      } else {
+        callback(tools);
+      }
+    });
+  }
 } 

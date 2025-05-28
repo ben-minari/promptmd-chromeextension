@@ -3,6 +3,7 @@ import { useAuth } from "../contexts/AuthContext"
 import { Button } from "../components/ui/Button"
 import { PromptCatalog } from "../components/prompts/PromptCatalog"
 import { toolsService } from "../services/tools-service"
+import { ratingsService } from "../services/ratings-service"
 import type { Tool } from "../services/tools-service"
 import { Header } from "../components/layout/Header"
 import { SearchableDropdown } from "../components/prompts/SearchableDropdown"
@@ -13,6 +14,9 @@ import { cn } from "../utils/cn"
 import { SearchBar } from "../components/prompts/SearchBar"
 import { ViewSelector, type PromptView } from "../components/prompts/ViewSelector"
 import { TagChip } from '../components/ui/TagChip';
+import { collection, query, where, onSnapshot } from "firebase/firestore"
+import { db } from "../utils/firebase"
+import { PromptDetails } from "../components/prompts/PromptDetails"
 
 const AVAILABLE_TAGS = {
   specialty: [
@@ -86,7 +90,7 @@ interface AuthenticatedAppProps {
 }
 
 export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: AuthenticatedAppProps) {
-  const { currentUser, logout, switchAccount } = useAuth()
+  const { currentUser } = useAuth()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [tools, setTools] = useState<Tool[]>([])
   const [savedToolIds, setSavedToolIds] = useState<Set<string>>(new Set())
@@ -100,6 +104,65 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
   })
   const [searchQuery, setSearchQuery] = useState("")
   const [activeView, setActiveView] = useState<PromptView>('all')
+  const [userRatings, setUserRatings] = useState<Record<string, number>>({})
+  const [selectedPrompt, setSelectedPrompt] = useState<Tool | null>(null)
+  const [matchMap, setMatchMap] = useState<Record<string, FuseResult<Tool>["matches"]>>({})
+
+  // Memoize the filtered tools to prevent unnecessary recalculations
+  const filteredTools = React.useMemo(() => {
+    // Fuzzy search setup
+    const fuse = new Fuse(tools, {
+      keys: [
+        "title",
+        "description",
+        { name: "tags.specialty", weight: 0.7 },
+        { name: "tags.useCase", weight: 0.7 },
+        { name: "tags.userType", weight: 0.7 },
+        { name: "tags.appModel", weight: 0.7 }
+      ],
+      threshold: 0.35,
+      includeMatches: true
+    });
+
+    let fuseResults: typeof tools = tools;
+    if (searchQuery.trim()) {
+      try {
+        const results = fuse.search(searchQuery.trim());
+        fuseResults = results.map(r => r.item);
+        setMatchMap(Object.fromEntries(results.map(r => [r.item.id!, r.matches])));
+      } catch (error) {
+        console.error('Search error:', error);
+        fuseResults = tools;
+        setMatchMap({});
+      }
+    } else {
+      setMatchMap({});
+    }
+
+    // Combine with tag filters
+    return fuseResults.filter((tool) => {
+      const matchesTags = Object.entries(selectedTags).every(([category, tags]) => {
+        if (tags.length === 0) return true;
+        return tags.every(tag => tool.tags[category as keyof typeof tool.tags]?.includes(tag));
+      });
+
+      if (activeView === 'saved') {
+        return tool.isSaved && matchesTags;
+      } else if (activeView === 'created') {
+        return tool.authorId === currentUser?.uid && tool.status === 'published' && matchesTags;
+      } else if (activeView === 'drafts') {
+        return tool.authorId === currentUser?.uid && tool.status === 'draft' && matchesTags;
+      }
+      return matchesTags;
+    });
+  }, [tools, searchQuery, selectedTags, activeView, currentUser?.uid]);
+
+  // Memoize the counts to prevent unnecessary recalculations
+  const counts = React.useMemo(() => ({
+    saved: tools.filter(t => t.isSaved).length,
+    created: tools.filter(t => t.authorId === currentUser?.uid && t.status === 'published').length,
+    drafts: tools.filter(t => t.authorId === currentUser?.uid && t.status === 'draft').length
+  }), [tools, currentUser?.uid]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -107,31 +170,64 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
     let savedToolIds: Set<string> = new Set();
     
     // Listen to published tools
-    const unsubTools = toolsService.listenToPublishedTools((tools) => {
-      // Update tools with current saved state
-      setTools(tools.map(tool => ({ 
-        ...tool, 
-        isSaved: savedToolIds.has(tool.id!) 
-      })));
+    const unsubPublishedTools = toolsService.listenToPublishedTools((publishedTools) => {
+      setTools(prevTools => {
+        // Keep drafts and user's created tools
+        const nonPublishedTools = prevTools.filter(tool => 
+          tool.status === 'draft' || 
+          (tool.authorId === currentUser.uid && tool.status === 'published')
+        );
+        // Add published tools
+        return [
+          ...nonPublishedTools,
+          ...publishedTools.map(tool => ({ 
+            ...tool, 
+            isSaved: savedToolIds.has(tool.id!),
+            userRating: userRatings[tool.id!]
+          }))
+        ];
+      });
       setIsLoading(false);
     });
 
-    // Listen to user's saved tools
-    let unsubSaved: (() => void) | null = null;
-    if (currentUser) {
-      unsubSaved = toolsService.listenToUserSavedTools(currentUser.uid, (ids) => {
-        savedToolIds = ids;
-        // Update all tools with new saved state
-        setTools(prevTools => prevTools.map(tool => ({ 
-          ...tool, 
-          isSaved: savedToolIds.has(tool.id!) 
-        })));
+    // Listen to user's drafts
+    const unsubDrafts = toolsService.listenToUserDrafts(currentUser.uid, (draftTools) => {
+      setTools(prevTools => {
+        // Keep published tools
+        const publishedTools = prevTools.filter(tool => 
+          tool.status === 'published' && tool.authorId !== currentUser.uid
+        );
+        // Add draft tools
+        return [
+          ...publishedTools,
+          ...draftTools.map(tool => ({ 
+            ...tool, 
+            isSaved: savedToolIds.has(tool.id!),
+            userRating: userRatings[tool.id!]
+          }))
+        ];
       });
-    }
+    });
+
+    // Listen to user's saved tools
+    const unsubSaved = toolsService.listenToUserSavedTools(currentUser.uid, (ids) => {
+      savedToolIds = ids;
+      setTools(prevTools => prevTools.map(tool => ({ 
+        ...tool, 
+        isSaved: savedToolIds.has(tool.id!) 
+      })));
+    });
+
+    // Listen to user's ratings
+    const unsubRatings = toolsService.listenToUserRatings(currentUser.uid, (ratings) => {
+      setUserRatings(ratings);
+    });
 
     return () => {
-      unsubTools();
-      if (unsubSaved) unsubSaved();
+      unsubPublishedTools();
+      unsubDrafts();
+      unsubSaved();
+      unsubRatings();
     };
   }, [currentUser]);
 
@@ -154,7 +250,6 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
   const handleSave = async (tool: Tool) => {
     if (!currentUser || !tool.id) return;
     try {
-      // Perform Firestore operation
       if (tool.isSaved) {
         await toolsService.unsaveTool(currentUser.uid, tool.id);
       } else {
@@ -168,74 +263,84 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
   const handleRate = async (tool: Tool, rating: number) => {
     if (!currentUser || !tool.id) return
     try {
-      // TODO: Implement rating functionality
-      console.log("Rating tool:", tool.id, rating)
+      const existingRating = await ratingsService.getUserRating(currentUser.uid, tool.id)
+      
+      if (existingRating) {
+        await ratingsService.updateRating(existingRating.id!, { value: rating })
+      } else {
+        await ratingsService.createRating({
+          toolId: tool.id,
+          userId: currentUser.uid,
+          value: rating
+        })
+      }
     } catch (error) {
       console.error("Error rating tool:", error)
     }
   }
 
   const handleShare = (tool: Tool) => {
-    // TODO: Implement sharing functionality
-    console.log("Sharing tool:", tool)
-  }
+    const shareableUrl = `${window.location.origin}/prompt/${tool.id}`;
+    navigator.clipboard.writeText(shareableUrl)
+      .then(() => {
+        console.log('URL copied to clipboard:', shareableUrl);
+      })
+      .catch((error) => {
+        console.error('Failed to copy URL:', error);
+      });
+  };
 
   const handleCreatePrompt = () => {
     setIsCreateModalOpen(true)
   }
 
   const handlePromptSubmit = async (prompt: Omit<Tool, "id" | "createdAt" | "updatedAt" | "saveCount" | "ratingAvg" | "ratingCount">) => {
+    if (!currentUser) return;
     try {
-      const newPrompt = await toolsService.createTool({
+      await toolsService.createTool({
         ...prompt,
-        authorId: currentUser!.uid
+        authorId: currentUser.uid
       });
-      // No need to reload tools; real-time listener will update state
     } catch (error) {
       console.error("Failed to create prompt:", error);
     }
   };
 
-  // Fuzzy search setup
-  const fuse = new Fuse(tools, {
-    keys: [
-      "title",
-      "description",
-      { name: "tags.specialty", weight: 0.7 },
-      { name: "tags.useCase", weight: 0.7 },
-      { name: "tags.userType", weight: 0.7 },
-      { name: "tags.appModel", weight: 0.7 }
-    ],
-    threshold: 0.35,
-    includeMatches: true
-  });
-
-  let fuseResults: typeof tools = tools;
-  let matchMap: Record<string, FuseResult<Tool>["matches"]> = {};
-  if (searchQuery.trim()) {
-    const results = fuse.search(searchQuery.trim());
-    fuseResults = results.map(r => r.item);
-    matchMap = Object.fromEntries(results.map(r => [r.item.id!, r.matches]));
-  }
-
-  // Combine with tag filters
-  const filteredTools = fuseResults.filter((tool) => {
-    const matchesTags = Object.entries(selectedTags).every(([category, tags]) => {
-      if (tags.length === 0) return true;
-      return tags.every(tag => tool.tags[category as keyof typeof tool.tags]?.includes(tag));
-    });
-    // If in saved view, only show saved tools
-    if (activeView === 'saved') {
-      return tool.isSaved && matchesTags;
+  const handleDelete = async (prompt: Tool) => {
+    if (!currentUser || !prompt.id) return;
+    try {
+      await toolsService.deleteTool(prompt.id);
+      setSelectedPrompt(null);
+    } catch (error) {
+      console.error('Failed to delete prompt:', error);
     }
-    return matchesTags;
-  });
+  };
 
-  // Calculate counts for badges
-  const counts = {
-    saved: tools.filter(t => t.isSaved).length,
-    created: tools.filter(t => t.authorId === currentUser?.uid).length,
-    drafts: tools.filter(t => t.authorId === currentUser?.uid && t.status === 'draft').length
+  const handlePublish = async (prompt: Tool) => {
+    if (!currentUser || !prompt.id) return;
+    try {
+      await toolsService.updateTool(prompt.id, {
+        status: "published"
+      });
+      setSelectedPrompt(null);
+    } catch (error) {
+      console.error('Failed to publish prompt:', error);
+    }
+  };
+
+  const handleEdit = async (prompt: Tool) => {
+    if (!currentUser || !prompt.id) return;
+    try {
+      if (prompt.status === "published") {
+        await toolsService.updateTool(prompt.id, {
+          status: "draft"
+        });
+      }
+      setSelectedPrompt(null);
+      setIsCreateModalOpen(true);
+    } catch (error) {
+      console.error('Failed to edit prompt:', error);
+    }
   };
 
   if (error) {
@@ -250,43 +355,56 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
   return (
     <div className="flex flex-col h-full">
       <Header
-        onSearch={q => { console.log('search:', q); setSearchQuery(q); }}
-        onOpenFilters={() => { console.log('open filters'); setIsFiltersOpen(true); }}
+        onSearch={q => setSearchQuery(q)}
+        onOpenFilters={() => setIsFiltersOpen(true)}
       />
       
       <div className="flex-1 overflow-y-auto">
-        {/* Segmented Control - now sticky and compact */}
-        <div className="sticky top-0 z-20 bg-white border-b border-slate-200 px-2 py-2">
-          <ViewSelector
-            activeView={activeView}
-            onViewChange={setActiveView}
-            savedCount={counts.saved}
-            createdCount={counts.created}
-            draftsCount={counts.drafts}
-            className=""
-          />
-        </div>
-        <div className="p-2 space-y-3">
-          {/* Selected Filters as Chips */}
-          <div className="flex flex-wrap gap-2 mb-2">
-            {Object.entries(selectedTags).flatMap(([category, tags]) =>
-              tags.map(tag => (
-                <TagChip key={category + tag} tag={tag} category={category}>
-                  <button
-                    className="hover:text-teal-900"
-                    onClick={() => handleTagRemove(category as TagCategory, tag)}
-                    aria-label={`Remove ${tag}`}
-                  >
-                    ×
-                  </button>
-                </TagChip>
-              ))
-            )}
+        {!selectedPrompt && (
+          <div className="sticky top-0 z-20 bg-white border-b border-slate-200 px-2 py-2">
+            <ViewSelector
+              activeView={activeView}
+              onViewChange={setActiveView}
+              savedCount={counts.saved}
+              createdCount={counts.created}
+              draftsCount={counts.drafts}
+              className=""
+            />
           </div>
+        )}
+        <div className="p-2 space-y-3">
+          {!selectedPrompt && (
+            <div className="flex flex-wrap gap-2 mb-2">
+              {Object.entries(selectedTags).flatMap(([category, tags]) =>
+                tags.map(tag => (
+                  <TagChip key={category + tag} tag={tag} category={category}>
+                    <button
+                      className="hover:text-teal-900"
+                      onClick={() => handleTagRemove(category as TagCategory, tag)}
+                      aria-label={`Remove ${tag}`}
+                    >
+                      ×
+                    </button>
+                  </TagChip>
+                ))
+              )}
+            </div>
+          )}
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
             </div>
+          ) : selectedPrompt ? (
+            <PromptDetails
+              prompt={selectedPrompt}
+              onClose={() => setSelectedPrompt(null)}
+              onSave={() => handleSave(selectedPrompt)}
+              onShare={() => handleShare(selectedPrompt)}
+              onRate={(rating) => handleRate(selectedPrompt, rating)}
+              onDelete={() => handleDelete(selectedPrompt)}
+              onPublish={() => handlePublish(selectedPrompt)}
+              onEdit={() => handleEdit(selectedPrompt)}
+            />
           ) : (
             <PromptCatalog
               prompts={filteredTools}
@@ -295,6 +413,8 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
               onShare={handleShare}
               onCreatePrompt={handleCreatePrompt}
               matchMap={matchMap}
+              selectedPrompt={selectedPrompt}
+              onSelectPrompt={setSelectedPrompt}
               emptyState={{
                 title:
                   activeView === 'all' ? 'No prompts found' :
@@ -315,7 +435,6 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
         </div>
       </div>
 
-      {/* Create Prompt Modal */}
       <CreatePromptModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
@@ -323,21 +442,18 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
         availableTags={AVAILABLE_TAGS}
       />
 
-      {/* Floating Action Button */}
-      <FloatingActionButton onClick={handleCreatePrompt} />
+      {!selectedPrompt && <FloatingActionButton onClick={handleCreatePrompt} />}
 
-      {isFiltersOpen && (console.log('Sidebar open!'), (
+      {isFiltersOpen && (
         <div className="fixed inset-0 z-40 flex">
-          {/* Overlay */}
-          <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => { console.log('Overlay clicked, closing sidebar'); setIsFiltersOpen(false); }} />
-          {/* Sidebar content */}
+          <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => setIsFiltersOpen(false)} />
           <div
             className="relative ml-auto max-w-full h-full bg-white shadow-xl p-6 border-l-4 border-blue-500"
             style={{ width: 320, backgroundColor: '#f8fafc' }}
           >
             <button
               className="absolute top-4 right-4 text-slate-500 hover:text-slate-700"
-              onClick={() => { console.log('Close button clicked'); setIsFiltersOpen(false); }}
+              onClick={() => setIsFiltersOpen(false)}
             >
               Close
             </button>
@@ -389,9 +505,7 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
             </div>
           </div>
         </div>
-      ))}
-
-      console.log('filteredTools:', filteredTools);
+      )}
     </div>
   )
 } 
