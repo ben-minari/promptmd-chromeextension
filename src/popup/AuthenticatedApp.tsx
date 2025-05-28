@@ -14,9 +14,10 @@ import { cn } from "../utils/cn"
 import { SearchBar } from "../components/prompts/SearchBar"
 import { ViewSelector, type PromptView } from "../components/prompts/ViewSelector"
 import { TagChip } from '../components/ui/TagChip';
-import { collection, query, where, onSnapshot } from "firebase/firestore"
+import { collection, query, where, onSnapshot, doc, getDoc } from "firebase/firestore"
 import { db } from "../utils/firebase"
 import { PromptDetails } from "../components/prompts/PromptDetails"
+import { Timestamp } from "firebase/firestore"
 
 const AVAILABLE_TAGS = {
   specialty: [
@@ -107,6 +108,7 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
   const [userRatings, setUserRatings] = useState<Record<string, number>>({})
   const [selectedPrompt, setSelectedPrompt] = useState<Tool | null>(null)
   const [matchMap, setMatchMap] = useState<Record<string, FuseResult<Tool>["matches"]>>({})
+  const [editingPromptId, setEditingPromptId] = useState<string | null>(null)
 
   // Memoize the filtered tools to prevent unnecessary recalculations
   const filteredTools = React.useMemo(() => {
@@ -139,21 +141,28 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
       setMatchMap({});
     }
 
-    // Combine with tag filters
+    // Combine with tag filters and view filters
     return fuseResults.filter((tool) => {
+      // First check tag filters
       const matchesTags = Object.entries(selectedTags).every(([category, tags]) => {
         if (tags.length === 0) return true;
         return tags.every(tag => tool.tags[category as keyof typeof tool.tags]?.includes(tag));
       });
 
+      if (!matchesTags) return false;
+
+      // Then check view filters
       if (activeView === 'saved') {
-        return tool.isSaved && matchesTags;
+        return tool.isSaved;
       } else if (activeView === 'created') {
-        return tool.authorId === currentUser?.uid && tool.status === 'published' && matchesTags;
+        return tool.authorId === currentUser?.uid && tool.status === 'published';
       } else if (activeView === 'drafts') {
-        return tool.authorId === currentUser?.uid && tool.status === 'draft' && matchesTags;
+        return tool.authorId === currentUser?.uid && tool.status === 'draft';
+      } else if (activeView === 'all') {
+        // In 'all' view, only show published prompts
+        return tool.status === 'published';
       }
-      return matchesTags;
+      return false;
     });
   }, [tools, searchQuery, selectedTags, activeView, currentUser?.uid]);
 
@@ -168,53 +177,48 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
     if (!currentUser) return;
     setIsLoading(true);
     let savedToolIds: Set<string> = new Set();
-    
+    let latestDrafts: Tool[] = [];
+    let latestPublished: Tool[] = [];
+
+    // Helper to merge and dedupe
+    const mergeAndSetTools = () => {
+      // Prefer drafts over published if same id
+      const all = [...latestDrafts, ...latestPublished];
+      const deduped = all.reduce((acc, tool) => {
+        acc[tool.id!] = tool;
+        return acc;
+      }, {} as Record<string, Tool>);
+      setTools(Object.values(deduped));
+    };
+
     // Listen to published tools
     const unsubPublishedTools = toolsService.listenToPublishedTools((publishedTools) => {
-      setTools(prevTools => {
-        // Keep drafts and user's created tools
-        const nonPublishedTools = prevTools.filter(tool => 
-          tool.status === 'draft' || 
-          (tool.authorId === currentUser.uid && tool.status === 'published')
-        );
-        // Add published tools
-        return [
-          ...nonPublishedTools,
-          ...publishedTools.map(tool => ({ 
-            ...tool, 
-            isSaved: savedToolIds.has(tool.id!),
-            userRating: userRatings[tool.id!]
-          }))
-        ];
-      });
+      latestPublished = publishedTools.map(tool => ({
+        ...tool,
+        isSaved: savedToolIds.has(tool.id!),
+        userRating: userRatings[tool.id!]
+      }));
+      mergeAndSetTools();
       setIsLoading(false);
     });
 
     // Listen to user's drafts
     const unsubDrafts = toolsService.listenToUserDrafts(currentUser.uid, (draftTools) => {
-      setTools(prevTools => {
-        // Keep published tools
-        const publishedTools = prevTools.filter(tool => 
-          tool.status === 'published' && tool.authorId !== currentUser.uid
-        );
-        // Add draft tools
-        return [
-          ...publishedTools,
-          ...draftTools.map(tool => ({ 
-            ...tool, 
-            isSaved: savedToolIds.has(tool.id!),
-            userRating: userRatings[tool.id!]
-          }))
-        ];
-      });
+      latestDrafts = draftTools.map(tool => ({
+        ...tool,
+        isSaved: savedToolIds.has(tool.id!),
+        userRating: userRatings[tool.id!]
+      }));
+      mergeAndSetTools();
     });
 
     // Listen to user's saved tools
     const unsubSaved = toolsService.listenToUserSavedTools(currentUser.uid, (ids) => {
       savedToolIds = ids;
-      setTools(prevTools => prevTools.map(tool => ({ 
-        ...tool, 
-        isSaved: savedToolIds.has(tool.id!) 
+      // Update isSaved on all tools
+      setTools(prevTools => prevTools.map(tool => ({
+        ...tool,
+        isSaved: savedToolIds.has(tool.id!)
       })));
     });
 
@@ -291,26 +295,78 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
   };
 
   const handleCreatePrompt = () => {
-    setIsCreateModalOpen(true)
+    setSelectedPrompt(null);
+    setIsCreateModalOpen(true);
   }
 
   const handlePromptSubmit = async (prompt: Omit<Tool, "id" | "createdAt" | "updatedAt" | "saveCount" | "ratingAvg" | "ratingCount">) => {
     if (!currentUser) return;
     try {
-      await toolsService.createTool({
-        ...prompt,
-        authorId: currentUser.uid
-      });
+      if (editingPromptId) {
+        // Update existing prompt
+        const updatedPrompt = {
+          ...prompt,
+          authorId: currentUser.uid,
+          updatedAt: Timestamp.now(),
+          status: prompt.status // Ensure we use the new status
+        };
+        
+        await toolsService.updateTool(editingPromptId, updatedPrompt);
+        
+        // Update local state to reflect the new status
+        setTools(prevTools => {
+          return prevTools.map(tool => 
+            tool.id === editingPromptId 
+              ? { ...tool, ...updatedPrompt }
+              : tool
+          );
+        });
+        
+        setEditingPromptId(null);
+      } else {
+        // Create new prompt
+        const newPrompt = await toolsService.createTool({
+          ...prompt,
+          authorId: currentUser.uid
+        });
+        
+        // Only update local state if it's a published prompt
+        // Drafts will be handled by the drafts listener
+        if (prompt.status === "published") {
+          setTools(prevTools => [...prevTools, newPrompt]);
+        }
+      }
+      // Close the modal
+      setIsCreateModalOpen(false);
+      // Clear the selected prompt
+      setSelectedPrompt(null);
     } catch (error) {
-      console.error("Failed to create prompt:", error);
+      console.error("Failed to create/update prompt:", error);
     }
   };
 
   const handleDelete = async (prompt: Tool) => {
     if (!currentUser || !prompt.id) return;
     try {
+      // First verify the user owns the prompt
+      const toolRef = doc(db, "tools", prompt.id);
+      const toolSnap = await getDoc(toolRef);
+      
+      if (!toolSnap.exists() || toolSnap.data().authorId !== currentUser.uid) {
+        throw new Error("You don't have permission to delete this prompt");
+      }
+      
       await toolsService.deleteTool(prompt.id);
+      
+      // Update local state by removing the deleted prompt
+      setTools(prevTools => prevTools.filter(tool => tool.id !== prompt.id));
+      
+      // Close the details view
       setSelectedPrompt(null);
+      // Reset any editing state
+      setEditingPromptId(null);
+      // Close the create/edit modal
+      setIsCreateModalOpen(false);
     } catch (error) {
       console.error('Failed to delete prompt:', error);
     }
@@ -319,10 +375,26 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
   const handlePublish = async (prompt: Tool) => {
     if (!currentUser || !prompt.id) return;
     try {
+      // First update the tool status to published
       await toolsService.updateTool(prompt.id, {
-        status: "published"
+        status: "published" as const,
+        updatedAt: Timestamp.now()
       });
+
+      // Then update the local state
+      setTools(prevTools => {
+        // Remove the draft version
+        const filteredTools = prevTools.filter(tool => tool.id !== prompt.id);
+        // Add the published version
+        return [
+          ...filteredTools,
+          { ...prompt, status: "published" as const }
+        ];
+      });
+
+      // Close the details view and reset editing state
       setSelectedPrompt(null);
+      setEditingPromptId(null);
     } catch (error) {
       console.error('Failed to publish prompt:', error);
     }
@@ -331,15 +403,15 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
   const handleEdit = async (prompt: Tool) => {
     if (!currentUser || !prompt.id) return;
     try {
-      if (prompt.status === "published") {
-        await toolsService.updateTool(prompt.id, {
-          status: "draft"
-        });
-      }
-      setSelectedPrompt(null);
+      // Store the original prompt ID
+      setEditingPromptId(prompt.id);
+      
+      // Set the prompt to edit and open the modal
+      setSelectedPrompt(prompt);
       setIsCreateModalOpen(true);
     } catch (error) {
       console.error('Failed to edit prompt:', error);
+      setEditingPromptId(null);
     }
   };
 
@@ -437,9 +509,14 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
 
       <CreatePromptModal
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          setEditingPromptId(null);
+        }}
         onSubmit={handlePromptSubmit}
         availableTags={AVAILABLE_TAGS}
+        isEditing={!!editingPromptId}
+        initialDraft={editingPromptId ? selectedPrompt ?? undefined : undefined}
       />
 
       {!selectedPrompt && <FloatingActionButton onClick={handleCreatePrompt} />}
