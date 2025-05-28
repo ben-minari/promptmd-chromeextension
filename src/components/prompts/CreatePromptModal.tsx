@@ -17,10 +17,12 @@ interface CreatePromptModalProps {
     appModel: string[]
   }
   isEditing?: boolean
-  initialDraft?: Tool
+  initialDraft?: Omit<Tool, "id" | "createdAt" | "updatedAt" | "saveCount" | "ratingAvg" | "ratingCount">
+  isAuthenticated: boolean
+  onSignIn: (draft: Omit<Tool, "id" | "createdAt" | "updatedAt" | "saveCount" | "ratingAvg" | "ratingCount">) => void
 }
 
-export function CreatePromptModal({ isOpen, onClose, onSubmit, availableTags, isEditing, initialDraft }: CreatePromptModalProps) {
+export function CreatePromptModal({ isOpen, onClose, onSubmit, availableTags, isEditing, initialDraft, isAuthenticated, onSignIn }: CreatePromptModalProps) {
   const { currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<Omit<Tool, "id" | "createdAt" | "updatedAt" | "saveCount" | "ratingAvg" | "ratingCount">>({

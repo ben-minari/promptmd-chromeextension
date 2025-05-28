@@ -424,7 +424,7 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
     <div className="flex flex-col h-full">
       <Header
         onSearch={q => setSearchQuery(q)}
-        onOpenFilters={() => setIsFiltersOpen(true)}
+        onOpenFilters={() => setIsFiltersOpen(open => !open)}
       />
       
       <div className="flex-1 overflow-y-auto">
@@ -513,6 +513,8 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
         availableTags={AVAILABLE_TAGS}
         isEditing={!!editingPromptId}
         initialDraft={editingPromptId ? selectedPrompt ?? undefined : undefined}
+        isAuthenticated={!!currentUser}
+        onSignIn={() => {}}
       />
 
       {!selectedPrompt && <FloatingActionButton onClick={handleCreatePrompt} />}
@@ -521,8 +523,8 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
         <div className="fixed inset-0 z-40 flex">
           <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => setIsFiltersOpen(false)} />
           <div
-            className="relative ml-auto max-w-full h-full bg-white shadow-xl p-6 border-l-4 border-blue-500"
-            style={{ width: 320, backgroundColor: '#f8fafc' }}
+            className="relative ml-auto max-w-full h-full bg-white shadow-xl p-4 border-l-4 border-blue-500"
+            style={{ width: 220, backgroundColor: '#f8fafc' }}
           >
             <button
               className="absolute top-4 right-4 text-slate-500 hover:text-slate-700"
@@ -530,7 +532,7 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
             >
               Close
             </button>
-            <div className="mt-8 space-y-4">
+            <div className="mt-16 space-y-4">
               <div className="flex justify-end mb-2">
                 <button
                   onClick={() => setSelectedTags({ specialty: [], useCase: [], userType: [], appModel: [] })}

@@ -269,7 +269,7 @@ export function PromptDetails({
 
             {/* Footer Actions */}
             <div className="p-4 border-t border-slate-200 flex items-center justify-between bg-white">
-              {showRating && (
+              {showRating && currentUser && (
                 <div 
                   className="flex items-center"
                   onMouseLeave={handleRatingLeave}
@@ -279,11 +279,7 @@ export function PromptDetails({
                       key={rating}
                       onClick={(e) => handleRatingClick(e, rating)}
                       onMouseEnter={(e) => handleRatingHover(e, rating)}
-                      className={cn(
-                        "text-amber-500 hover:text-amber-600 h-6 px-0.5",
-                        !currentUser && "cursor-not-allowed opacity-50"
-                      )}
-                      disabled={!currentUser}
+                      className="text-amber-500 hover:text-amber-600 h-6 px-0.5"
                     >
                       <Star 
                         className={cn(
@@ -309,11 +305,11 @@ export function PromptDetails({
                   <Share2 className="h-4 w-4 mr-1" />
                   <span className="text-sm">Share</span>
                 </Button>
-                {!isOwner && (
+                {currentUser && !isOwner && (
                   <Button 
                     variant="ghost" 
                     onClick={handleSave}
-                    disabled={isSaving || !currentUser}
+                    disabled={isSaving}
                     className={cn(
                       "h-8 px-3",
                       prompt.isSaved ? "text-blue-600 hover:text-blue-700" : "text-slate-600 hover:text-slate-800"
@@ -321,11 +317,11 @@ export function PromptDetails({
                   >
                     <Bookmark className="h-4 w-4 mr-1" />
                     <span className="text-sm">
-                      {isSaving ? (prompt.isSaved ? "Unsaving..." : "Saving...") : prompt.isSaved ? "Saved" : currentUser ? "Save" : "Sign in to Save"}
+                      {isSaving ? (prompt.isSaved ? "Unsaving..." : "Saving...") : prompt.isSaved ? "Saved" : "Save"}
                     </span>
                   </Button>
                 )}
-                {isOwner && prompt.status === "draft" && (
+                {currentUser && isOwner && prompt.status === "draft" && (
                   <>
                     <Button 
                       variant="ghost" 
@@ -345,7 +341,7 @@ export function PromptDetails({
                     </Button>
                   </>
                 )}
-                {isOwner && prompt.status === "published" && (
+                {currentUser && isOwner && prompt.status === "published" && (
                   <Button 
                     variant="ghost" 
                     onClick={onEdit}
@@ -355,7 +351,7 @@ export function PromptDetails({
                     <span className="text-sm">Edit</span>
                   </Button>
                 )}
-                {isOwner && (
+                {currentUser && isOwner && (
                   <Button 
                     variant="ghost" 
                     onClick={handleDeleteClick}

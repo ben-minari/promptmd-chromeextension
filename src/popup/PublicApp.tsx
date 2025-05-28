@@ -8,6 +8,7 @@ import { Header } from '../components/layout/Header';
 import { SearchableDropdown } from '../components/prompts/SearchableDropdown';
 import { CreatePromptModal } from '../components/prompts/CreatePromptModal';
 import { FloatingActionButton } from '../components/ui/FloatingActionButton';
+import { PromptDetails } from '../components/prompts/PromptDetails';
 import Fuse, { FuseResult } from "fuse.js"
 import { TagChip } from '../components/ui/TagChip';
 
@@ -87,6 +88,7 @@ const PublicApp = ({ isFiltersOpen, setIsFiltersOpen }: PublicAppProps) => {
   const [tools, setTools] = useState<Tool[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPrompt, setSelectedPrompt] = useState<Tool | null>(null);
   const [selectedTags, setSelectedTags] = useState<{
     specialty: string[];
     useCase: string[];
@@ -229,7 +231,7 @@ const PublicApp = ({ isFiltersOpen, setIsFiltersOpen }: PublicAppProps) => {
     <div className="h-full flex flex-col">
       <Header 
         onSearch={q => { console.log('search:', q); setSearchQuery(q); }}
-        onOpenFilters={() => { console.log('open filters'); setIsFiltersOpen(true); }}
+        onOpenFilters={() => setIsFiltersOpen(open => !open)}
       />
       {/* Filters Sidebar */}
       {isFiltersOpen && (console.log('Sidebar open!'), (
@@ -238,8 +240,8 @@ const PublicApp = ({ isFiltersOpen, setIsFiltersOpen }: PublicAppProps) => {
           <div className="fixed inset-0 bg-black bg-opacity-30" onClick={() => { console.log('Overlay clicked, closing sidebar'); setIsFiltersOpen(false); }} />
           {/* Sidebar */}
           <div
-            className="relative ml-auto max-w-full h-full bg-white shadow-xl p-6 border-l-4 border-blue-500"
-            style={{ width: 320, backgroundColor: '#f8fafc' }}
+            className="relative ml-auto max-w-full h-full bg-white shadow-xl p-4 border-l-4 border-blue-500"
+            style={{ width: 220, backgroundColor: '#f8fafc' }}
           >
             <button
               className="absolute top-4 right-4 text-slate-500 hover:text-slate-700"
@@ -339,9 +341,22 @@ const PublicApp = ({ isFiltersOpen, setIsFiltersOpen }: PublicAppProps) => {
             onShare={handleShare}
             onCreatePrompt={handleCreatePrompt}
             matchMap={matchMap}
+            selectedPrompt={selectedPrompt}
+            onSelectPrompt={setSelectedPrompt}
           />
         )}
       </div>
+
+      {/* Prompt Details */}
+      {selectedPrompt && (
+        <PromptDetails
+          prompt={selectedPrompt}
+          onClose={() => setSelectedPrompt(null)}
+          onSave={() => handleSave(selectedPrompt)}
+          onShare={() => handleShare(selectedPrompt)}
+          onRate={(rating) => handleRate(selectedPrompt, rating)}
+        />
+      )}
 
       {/* Create Prompt Modal */}
       <CreatePromptModal
@@ -350,8 +365,8 @@ const PublicApp = ({ isFiltersOpen, setIsFiltersOpen }: PublicAppProps) => {
           setIsCreateModalOpen(false);
           setDraftPrompt(null);
         }}
-        onSubmit={prompt => {
-          handlePromptSubmit(prompt);
+        onSubmit={async (prompt) => {
+          await handlePromptSubmit(prompt);
           setDraftPrompt(null);
         }}
         availableTags={{
@@ -361,7 +376,7 @@ const PublicApp = ({ isFiltersOpen, setIsFiltersOpen }: PublicAppProps) => {
           appModel: [...AVAILABLE_TAGS.appModel]
         }}
         isAuthenticated={!!currentUser}
-        onSignIn={(draft) => {
+        onSignIn={(draft: Omit<Tool, "id" | "createdAt" | "updatedAt" | "saveCount" | "ratingAvg" | "ratingCount">) => {
           setDraftPrompt(draft);
           setIsCreateModalOpen(false);
           setIsSignInModalOpen(true);
