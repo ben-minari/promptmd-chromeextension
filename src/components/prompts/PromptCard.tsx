@@ -56,7 +56,7 @@ export function PromptCard({
   const [creator, setCreator] = React.useState<User | null>(null)
 
   const isOwner = currentUser?.uid === prompt.authorId
-  const showRating = !isOwner && prompt.status === "published"
+  const showRating = prompt.status === "published"
 
   useEffect(() => {
     const fetchCreator = async () => {
@@ -145,7 +145,7 @@ export function PromptCard({
               </span>
             </div>
           )}
-          {!isOwner && (
+          {!isOwner && showRating && (
             <Button
               variant="ghost"
               size="sm"
@@ -164,6 +164,14 @@ export function PromptCard({
                 {isSaving ? "Saving..." : prompt.isSaved ? "Saved" : currentUser ? "Click to Save" : "Sign in to Save"}
               </span>
             </Button>
+          )}
+          {isOwner && showRating && (
+            <div className="flex items-center text-slate-600">
+              <Bookmark className="h-3 w-3" />
+              <span className="ml-1 text-xs">
+                {prompt.saveCount} saves
+              </span>
+            </div>
           )}
         </div>
         <div className="flex items-center gap-1">
