@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { Button } from "../ui/Button"
-import { X } from "lucide-react"
+import { X, Plus, Trash2 } from "lucide-react"
 import { cn } from "../../utils/cn"
 import type { Tool } from "../../services/tools-service"
 import { useAuth } from "../../contexts/AuthContext"
@@ -38,7 +38,8 @@ export function CreatePromptModal({ isOpen, onClose, onSubmit, availableTags, is
     status: "draft",
     type: "prompt",
     authorId: "", // Will be set on submit
-    version: 1
+    version: 1,
+    sources: []
   });
 
   // Update form data when modal opens with initial draft
@@ -54,7 +55,8 @@ export function CreatePromptModal({ isOpen, onClose, onSubmit, availableTags, is
           status: initialDraft.status,
           type: "prompt",
           authorId: "", // Will be set on submit
-          version: 1
+          version: 1,
+          sources: initialDraft.sources || []
         });
       } else if (!isEditing) {
         // If creating new, reset to empty form
@@ -71,7 +73,8 @@ export function CreatePromptModal({ isOpen, onClose, onSubmit, availableTags, is
           status: "draft",
           type: "prompt",
           authorId: "", // Will be set on submit
-          version: 1
+          version: 1,
+          sources: []
         });
       }
     }
@@ -84,7 +87,8 @@ export function CreatePromptModal({ isOpen, onClose, onSubmit, availableTags, is
         formData.title !== initialDraft.title ||
         formData.description !== initialDraft.description ||
         formData.content !== initialDraft.content ||
-        JSON.stringify(formData.tags) !== JSON.stringify(initialDraft.tags);
+        JSON.stringify(formData.tags) !== JSON.stringify(initialDraft.tags) ||
+        JSON.stringify(formData.sources) !== JSON.stringify(initialDraft.sources);
       
       if (!hasChanges) {
         onClose();
@@ -115,7 +119,8 @@ export function CreatePromptModal({ isOpen, onClose, onSubmit, availableTags, is
           status: "draft",
           type: "prompt",
           authorId: "",
-          version: 1
+          version: 1,
+          sources: []
         });
       }
     } finally {
@@ -140,6 +145,29 @@ export function CreatePromptModal({ isOpen, onClose, onSubmit, availableTags, is
         ...prev.tags,
         [category]: prev.tags[category].filter(t => t !== tag)
       }
+    }));
+  };
+
+  const handleAddSource = () => {
+    setFormData(prev => ({
+      ...prev,
+      sources: [...(prev.sources || []), { type: "url", value: "", label: "" }]
+    }));
+  };
+
+  const handleRemoveSource = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      sources: prev.sources?.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSourceChange = (index: number, field: "type" | "value" | "label", value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      sources: prev.sources?.map((source, i) => 
+        i === index ? { ...source, [field]: value } : source
+      )
     }));
   };
 
@@ -219,8 +247,60 @@ export function CreatePromptModal({ isOpen, onClose, onSubmit, availableTags, is
                 />
               </div>
 
+              {/* Sources section */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Sources
+                  </label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleAddSource}
+                    className="h-8 px-2"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    <span className="text-xs">Add Source</span>
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {formData.sources?.map((source, index) => (
+                    <div key={index} className="flex gap-2 items-center">
+                      <select
+                        value={source.type}
+                        onChange={(e) => handleSourceChange(index, "type", e.target.value)}
+                        className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                      >
+                        <option value="url">URL</option>
+                        <option value="user">User</option>
+                        <option value="text">Text</option>
+                      </select>
+                      <input
+                        type="text"
+                        value={source.value}
+                        onChange={(e) => handleSourceChange(index, "value", e.target.value)}
+                        placeholder={source.type === "url" ? "Enter URL" : "Enter value"}
+                        className="flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                      />
+                      <div className="flex-shrink-0 flex items-center justify-center" style={{ height: '32px' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSource(index)}
+                          className="text-slate-400 hover:text-slate-600 p-1"
+                          aria-label="Remove Source"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Tags section */}
               <div className="space-y-4">
+                <div className="block text-sm font-medium text-slate-700 mb-2">Tags</div>
                 <SearchableDropdown
                   label="Specialty"
                   options={availableTags.specialty}
@@ -246,12 +326,12 @@ export function CreatePromptModal({ isOpen, onClose, onSubmit, availableTags, is
                   placeholder="Select user types..."
                 />
                 <SearchableDropdown
-                  label="AI Model"
+                  label="AI App / Model"
                   options={availableTags.appModel}
                   selectedOptions={formData.tags.appModel}
                   onSelect={(tag) => handleTagSelect('appModel', tag)}
                   onRemove={(tag) => handleTagRemove('appModel', tag)}
-                  placeholder="Select AI models..."
+                  placeholder="Select AI apps or models..."
                 />
               </div>
 
