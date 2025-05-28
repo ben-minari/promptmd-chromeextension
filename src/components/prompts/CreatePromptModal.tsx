@@ -280,7 +280,7 @@ export function CreatePromptModal({ isOpen, onClose, onSubmit, availableTags, is
                       {isSubmitting ? (
                         <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
                       ) : isEditing ? (
-                        "Update Prompt"
+                        "Publish Prompt"
                       ) : (
                         "Create Prompt"
                       )}
