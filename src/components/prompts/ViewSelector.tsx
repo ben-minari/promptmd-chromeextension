@@ -60,82 +60,86 @@ export function ViewSelector({
     ctx.font = font;
     return ctx.measureText(text).width;
   };
-  const maxLabelWidth = Math.max(...tabLabels.map(l => getTextWidth(l))) + 36; // 36px for badge/chevron
-  const tabMinWidth = Math.max(80, Math.ceil(maxLabelWidth));
+  const maxLabelWidth = Math.max(...tabLabels.map(l => getTextWidth(l))) + 36 + 20; // 36px for badge/chevron, 20px buffer
+  const tabMinWidth = Math.max(100, Math.ceil(maxLabelWidth));
+  const buttonHeight = 40; // px, matches py-1.5 + font size + border
 
   return (
     <div className={cn("inline-flex flex-col items-start relative", className)} style={{ minWidth: tabMinWidth }}>
-      <div
-        className="relative w-full"
-        tabIndex={0}
-        onMouseEnter={() => setExpanded(true)}
-        onMouseLeave={() => setExpanded(false)}
-        onFocus={() => setExpanded(true)}
-        onBlur={handleBlur}
-        style={{ minWidth: tabMinWidth }}
-      >
-        {/* Collapsed: Only active tab visible */}
-        {!expanded && (
-          <button
-            className={cn(
-              "w-max min-w-[80px] px-3 py-2 text-sm rounded-lg transition-colors flex items-center justify-center bg-teal-500 text-white shadow-sm border border-slate-200 font-semibold",
-            )}
-            onClick={() => setExpanded(true)}
-            aria-label={`Current view: ${VIEW_LABELS[activeView]}. Click or hover to expand.`}
-            style={{ minWidth: tabMinWidth, maxWidth: tabMinWidth }}
-          >
-            <span className="flex items-center justify-center mx-auto">
-              {VIEW_LABELS[activeView]}
-              {getCount(activeView) > 0 && (
-                <span className="ml-1 bg-teal-100 text-teal-700 text-xs px-1.5 py-0.5 rounded-full">
-                  {getCount(activeView)}
-                </span>
+      {/* Fixed height wrapper to prevent vertical shift */}
+      <div style={{ height: buttonHeight, minWidth: tabMinWidth, position: 'relative', width: '100%' }}>
+        <div
+          className="relative w-full h-full"
+          tabIndex={0}
+          onMouseEnter={() => setExpanded(true)}
+          onMouseLeave={() => setExpanded(false)}
+          onFocus={() => setExpanded(true)}
+          onBlur={handleBlur}
+          style={{ minWidth: tabMinWidth, height: buttonHeight }}
+        >
+          {/* Collapsed: Only active tab visible */}
+          {!expanded && (
+            <button
+              className={cn(
+                "w-max min-w-[100px] px-3 py-1.5 text-sm rounded-lg transition-colors flex items-center justify-center bg-teal-500 text-white shadow-sm border border-slate-200 font-semibold",
               )}
-            </span>
-            {/* Chevron down */}
-            <svg className="ml-2 w-3 h-3 text-white" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3 5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-        )}
-        {/* Expanded: Dropdown menu */}
-        {expanded && (
-          <div className="absolute left-0 top-full w-max min-w-[80px] z-50 bg-white border border-slate-200 rounded-lg shadow-lg flex flex-col transition-all" style={{ minWidth: tabMinWidth, maxWidth: tabMinWidth }}>
-            {getOrderedViews().map((view, idx, arr) => (
-              <button
-                key={view}
-                onClick={() => {
-                  onViewChange(view)
-                  setExpanded(false)
-                }}
-                className={cn(
-                  "w-full px-3 py-2 text-sm flex items-center justify-center transition-colors",
-                  view === activeView
-                    ? 'bg-teal-500 text-white font-semibold' // highlight active
-                    : 'text-slate-700 hover:bg-slate-100',
-                  idx === 0 ? "rounded-t-lg" : "",
-                  idx === arr.length - 1 ? "rounded-b-lg" : ""
+              onClick={() => setExpanded(true)}
+              aria-label={`Current view: ${VIEW_LABELS[activeView]}. Click or hover to expand.`}
+              style={{ minWidth: tabMinWidth, maxWidth: tabMinWidth, height: buttonHeight - 2 }}
+            >
+              <span className="flex items-center justify-center mx-auto">
+                {VIEW_LABELS[activeView]}
+                {getCount(activeView) > 0 && (
+                  <span className="ml-1 bg-teal-100 text-teal-700 text-xs px-1.5 py-0.5 rounded-full">
+                    {getCount(activeView)}
+                  </span>
                 )}
-                style={{ minWidth: tabMinWidth, maxWidth: tabMinWidth }}
-              >
-                <span className="flex items-center justify-center mx-auto">
-                  {VIEW_LABELS[view]}
-                  {getCount(view) > 0 && (
-                    <span className="ml-1 bg-teal-100 text-teal-700 text-xs px-1.5 py-0.5 rounded-full">
-                      {getCount(view)}
-                    </span>
+              </span>
+              {/* Chevron down */}
+              <svg className="ml-2 w-3 h-3 text-white" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          )}
+          {/* Expanded: Dropdown menu */}
+          {expanded && (
+            <div className="absolute left-0 top-full w-max min-w-[100px] z-50 bg-white border border-slate-200 rounded-lg shadow-lg flex flex-col transition-all" style={{ minWidth: tabMinWidth, maxWidth: tabMinWidth }}>
+              {getOrderedViews().map((view, idx, arr) => (
+                <button
+                  key={view}
+                  onClick={() => {
+                    onViewChange(view)
+                    setExpanded(false)
+                  }}
+                  className={cn(
+                    "w-full px-3 py-1.5 text-sm flex items-center justify-center transition-colors",
+                    view === activeView
+                      ? 'bg-teal-500 text-white font-semibold' // highlight active
+                      : 'text-slate-700 hover:bg-slate-100',
+                    idx === 0 ? "rounded-t-lg" : "",
+                    idx === arr.length - 1 ? "rounded-b-lg" : ""
                   )}
-                </span>
-                {/* Chevron up for active tab */}
-                {view === activeView && (
-                  <svg className="ml-2 w-3 h-3 text-white" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M3 7l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
+                  style={{ minWidth: tabMinWidth, maxWidth: tabMinWidth }}
+                >
+                  <span className="flex items-center justify-center mx-auto">
+                    {VIEW_LABELS[view]}
+                    {getCount(view) > 0 && (
+                      <span className="ml-1 bg-teal-100 text-teal-700 text-xs px-1.5 py-0.5 rounded-full">
+                        {getCount(view)}
+                      </span>
+                    )}
+                  </span>
+                  {/* Chevron up for active tab */}
+                  {view === activeView && (
+                    <svg className="ml-2 w-3 h-3 text-white" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M3 7l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
       {/* Persistent border under the control for visual stability */}
       <div className="w-full border-b border-slate-200" style={{ minWidth: tabMinWidth }} />
