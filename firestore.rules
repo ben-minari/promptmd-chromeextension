@@ -24,8 +24,7 @@ service cloud.firestore {
         && resource.data.status == "draft";
       
       // Only the owner can update their published tools
-      allow update: if isOwner(resource.data.authorId) 
-        && resource.data.status == "published";
+      allow update: if isOwner(resource.data.authorId);
       
       // Allow authenticated users to update saveCount and rating fields
       allow update: if isAuthenticated() 
