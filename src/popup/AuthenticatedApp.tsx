@@ -182,13 +182,25 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
 
     // Helper to merge and dedupe
     const mergeAndSetTools = () => {
-      // Prefer drafts over published if same id
-      const all = [...latestDrafts, ...latestPublished];
-      const deduped = all.reduce((acc, tool) => {
-        acc[tool.id!] = tool;
-        return acc;
-      }, {} as Record<string, Tool>);
-      setTools(Object.values(deduped));
+      // Create a map of all tools by ID
+      const toolMap = new Map<string, Tool>();
+      
+      // First add all published tools
+      latestPublished.forEach(tool => {
+        if (tool.id) {
+          toolMap.set(tool.id, tool);
+        }
+      });
+      
+      // Then add/override with drafts (drafts take precedence)
+      latestDrafts.forEach(tool => {
+        if (tool.id) {
+          toolMap.set(tool.id, tool);
+        }
+      });
+      
+      // Convert map back to array
+      setTools(Array.from(toolMap.values()));
     };
 
     // Listen to published tools
@@ -312,29 +324,13 @@ export default function AuthenticatedApp({ isFiltersOpen, setIsFiltersOpen }: Au
         };
         
         await toolsService.updateTool(editingPromptId, updatedPrompt);
-        
-        // Update local state to reflect the new status
-        setTools(prevTools => {
-          return prevTools.map(tool => 
-            tool.id === editingPromptId 
-              ? { ...tool, ...updatedPrompt }
-              : tool
-          );
-        });
-        
         setEditingPromptId(null);
       } else {
         // Create new prompt
-        const newPrompt = await toolsService.createTool({
+        await toolsService.createTool({
           ...prompt,
           authorId: currentUser.uid
         });
-        
-        // Only update local state if it's a published prompt
-        // Drafts will be handled by the drafts listener
-        if (prompt.status === "published") {
-          setTools(prevTools => [...prevTools, newPrompt]);
-        }
       }
       // Close the modal
       setIsCreateModalOpen(false);
