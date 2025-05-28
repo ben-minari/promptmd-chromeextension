@@ -40,6 +40,7 @@ export function PromptDetails({
   const [hoveredRating, setHoveredRating] = useState<number | null>(null)
   const [creator, setCreator] = useState<User | null>(null)
   const [isOpening, setIsOpening] = useState(true)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const isOwner = currentUser?.uid === prompt.authorId
   const showRating = !isOwner && prompt.status === "published"
@@ -97,6 +98,19 @@ export function PromptDetails({
     e.stopPropagation();
     setHoveredRating(null);
   }, []);
+
+  const handleDeleteClick = useCallback(() => {
+    setShowDeleteConfirm(true)
+  }, [])
+
+  const handleDeleteConfirm = useCallback(() => {
+    onDelete?.()
+    setShowDeleteConfirm(false)
+  }, [onDelete])
+
+  const handleDeleteCancel = useCallback(() => {
+    setShowDeleteConfirm(false)
+  }, [])
 
   return (
     <div className="fixed inset-0 z-50">
@@ -344,7 +358,7 @@ export function PromptDetails({
                 {isOwner && (
                   <Button 
                     variant="ghost" 
-                    onClick={onDelete}
+                    onClick={handleDeleteClick}
                     className="h-8 px-3 text-red-600 hover:text-red-700"
                   >
                     <Trash2 className="h-4 w-4 mr-1" />
@@ -356,6 +370,33 @@ export function PromptDetails({
           </div>
         </div>
       </div>
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/20" onClick={handleDeleteCancel} />
+          <div className="relative bg-white rounded-lg p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Delete Prompt</h3>
+            <p className="text-slate-600 mb-4">
+              Are you sure you want to delete this prompt? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="ghost"
+                onClick={handleDeleteCancel}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleDeleteConfirm}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 } 
